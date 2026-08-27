@@ -1,0 +1,8 @@
+.DS_Store
+.swiftpm/
+.build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+Tools/.m770_cache/
+Tools/.sefaria_cache/
