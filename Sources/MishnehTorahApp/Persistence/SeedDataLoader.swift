@@ -22,28 +22,40 @@ enum SeedDataLoader {
         for bookSeed in SeedBook.all {
             try Task.checkCancellation()
             let book = MTBook(order: bookSeed.order, titleHebrew: bookSeed.titleHebrew, titleRussian: bookSeed.titleRussian)
+            book.contentID = ContentIDGenerator.bookID(order: bookSeed.order)
             context.insert(book)
 
             for sectionSeed in bookSeed.sections {
                 try Task.checkCancellation()
                 let section = MTSection(order: sectionSeed.order, titleHebrew: sectionSeed.titleHebrew, titleRussian: sectionSeed.titleRussian)
+                section.contentID = ContentIDGenerator.sectionID(bookOrder: bookSeed.order, sectionOrder: sectionSeed.order)
                 section.book = book
                 book.sections.append(section)
                 context.insert(section)
 
                 for chapterSeed in sectionSeed.chapters {
                     let chapter = MTChapter(number: chapterSeed.number)
+                    let m770ID = String(chapterSeed.m770Id)
+                    chapter.contentID = ContentIDGenerator.chapterID(m770ID: m770ID)
+                    chapter.m770ID = m770ID
+                    chapter.m770URL = chapterSeed.m770Url
                     chapter.section = section
                     section.chapters.append(chapter)
                     context.insert(chapter)
 
-                    for halakhahSeed in chapterSeed.halakhot {
+                    var lawOccurrences: [Int: Int] = [:]
+                    for (index, halakhahSeed) in chapterSeed.halakhot.enumerated() {
+                        let partIndex = lawOccurrences[halakhahSeed.number, default: 0]
+                        lawOccurrences[halakhahSeed.number] = partIndex + 1
                         let halakhah = MTHalakhah(
                             number: halakhahSeed.number,
                             hebrewText: halakhahSeed.hebrewText,
                             russianText: halakhahSeed.russianText,
                             notes: halakhahSeed.notes
                         )
+                        halakhah.contentID = ContentIDGenerator.halakhahID(m770ID: m770ID, lawNumber: halakhahSeed.number, partIndex: partIndex)
+                        halakhah.partIndex = partIndex
+                        halakhah.sortOrder = index + 1
                         halakhah.chapter = chapter
                         chapter.halakhot.append(halakhah)
                         context.insert(halakhah)
@@ -122,6 +134,8 @@ struct SeedSection: Decodable {
 
 struct SeedChapter: Decodable {
     let number: Int
+    let m770Id: Int
+    let m770Url: String?
     let halakhot: [SeedHalakhah]
 }
 
@@ -158,7 +172,7 @@ private extension SeedBook {
     static let fallback: [SeedBook] = [
         SeedBook(order: 1, titleHebrew: "ספר המדע", titleRussian: "Книга знания", sections: [
             SeedSection(order: 1, titleHebrew: "הלכות יסודי התורה", titleRussian: "Законы основ Торы", chapters: [
-                SeedChapter(number: 1, halakhot: [
+                SeedChapter(number: 1, m770Id: 13, m770Url: nil, halakhot: [
                     SeedHalakhah(
                         number: 1,
                         hebrewText: "יסוד היסודות ועמוד החכמות לידע שיש שם מצוי ראשון.",

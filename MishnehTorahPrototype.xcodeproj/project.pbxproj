@@ -25,6 +25,16 @@
 		100000000000000000000016 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000116 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift */; };
 		100000000000000000000017 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000117 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift */; };
 		100000000000000000000018 /* Sources/MishnehTorahApp/Views/FontInstallService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000118 /* Sources/MishnehTorahApp/Views/FontInstallService.swift */; };
+		100000000000000000000019 /* Sources/MishnehTorahApp/Networking/SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000119 /* Sources/MishnehTorahApp/Networking/SupabaseConfig.swift */; };
+		100000000000000000000021 /* Sources/MishnehTorahApp/Networking/SupabaseClientProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000121 /* Sources/MishnehTorahApp/Networking/SupabaseClientProvider.swift */; };
+		100000000000000000000022 /* Sources/MishnehTorahApp/Networking/RemoteContentDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000122 /* Sources/MishnehTorahApp/Networking/RemoteContentDTO.swift */; };
+		100000000000000000000023 /* Sources/MishnehTorahApp/Networking/RemoteContentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000123 /* Sources/MishnehTorahApp/Networking/RemoteContentService.swift */; };
+		100000000000000000000024 /* Sources/MishnehTorahApp/Sync/ContentIDGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000124 /* Sources/MishnehTorahApp/Sync/ContentIDGenerator.swift */; };
+		100000000000000000000025 /* Sources/MishnehTorahApp/Sync/LocalContentBackfill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000125 /* Sources/MishnehTorahApp/Sync/LocalContentBackfill.swift */; };
+		100000000000000000000026 /* Sources/MishnehTorahApp/Sync/SyncStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000126 /* Sources/MishnehTorahApp/Sync/SyncStateStore.swift */; };
+		100000000000000000000027 /* Sources/MishnehTorahApp/Sync/SyncLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000127 /* Sources/MishnehTorahApp/Sync/SyncLogger.swift */; };
+		100000000000000000000028 /* Sources/MishnehTorahApp/Sync/ContentSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000128 /* Sources/MishnehTorahApp/Sync/ContentSyncService.swift */; };
+		100000000000000000000029 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000400 /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +57,15 @@
 		100000000000000000000116 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift; sourceTree = "<group>"; };
 		100000000000000000000117 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Views/AppDateFormatter.swift; sourceTree = "<group>"; };
 		100000000000000000000118 /* Sources/MishnehTorahApp/Views/FontInstallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Views/FontInstallService.swift; sourceTree = "<group>"; };
+		100000000000000000000119 /* Sources/MishnehTorahApp/Networking/SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Networking/SupabaseConfig.swift; sourceTree = "<group>"; };
+		100000000000000000000121 /* Sources/MishnehTorahApp/Networking/SupabaseClientProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Networking/SupabaseClientProvider.swift; sourceTree = "<group>"; };
+		100000000000000000000122 /* Sources/MishnehTorahApp/Networking/RemoteContentDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Networking/RemoteContentDTO.swift; sourceTree = "<group>"; };
+		100000000000000000000123 /* Sources/MishnehTorahApp/Networking/RemoteContentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Networking/RemoteContentService.swift; sourceTree = "<group>"; };
+		100000000000000000000124 /* Sources/MishnehTorahApp/Sync/ContentIDGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Sync/ContentIDGenerator.swift; sourceTree = "<group>"; };
+		100000000000000000000125 /* Sources/MishnehTorahApp/Sync/LocalContentBackfill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Sync/LocalContentBackfill.swift; sourceTree = "<group>"; };
+		100000000000000000000126 /* Sources/MishnehTorahApp/Sync/SyncStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Sync/SyncStateStore.swift; sourceTree = "<group>"; };
+		100000000000000000000127 /* Sources/MishnehTorahApp/Sync/SyncLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Sync/SyncLogger.swift; sourceTree = "<group>"; };
+		100000000000000000000128 /* Sources/MishnehTorahApp/Sync/ContentSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Sync/ContentSyncService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,6 +73,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000029 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,6 +117,15 @@
 				100000000000000000000116 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift */,
 				100000000000000000000117 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift */,
 				100000000000000000000118 /* Sources/MishnehTorahApp/Views/FontInstallService.swift */,
+				100000000000000000000119 /* Sources/MishnehTorahApp/Networking/SupabaseConfig.swift */,
+				100000000000000000000121 /* Sources/MishnehTorahApp/Networking/SupabaseClientProvider.swift */,
+				100000000000000000000122 /* Sources/MishnehTorahApp/Networking/RemoteContentDTO.swift */,
+				100000000000000000000123 /* Sources/MishnehTorahApp/Networking/RemoteContentService.swift */,
+				100000000000000000000124 /* Sources/MishnehTorahApp/Sync/ContentIDGenerator.swift */,
+				100000000000000000000125 /* Sources/MishnehTorahApp/Sync/LocalContentBackfill.swift */,
+				100000000000000000000126 /* Sources/MishnehTorahApp/Sync/SyncStateStore.swift */,
+				100000000000000000000127 /* Sources/MishnehTorahApp/Sync/SyncLogger.swift */,
+				100000000000000000000128 /* Sources/MishnehTorahApp/Sync/ContentSyncService.swift */,
 			);
 			name = Sources;
 			sourceTree = "<group>";
@@ -117,6 +146,9 @@
 			dependencies = (
 			);
 			name = MishnehTorahApp;
+			packageProductDependencies = (
+				100000000000000000000400 /* Supabase */,
+			);
 			productName = MishnehTorahApp;
 			productReference = 100000000000000000000020 /* MishnehTorahApp.app */;
 			productType = "com.apple.product-type.application";
@@ -146,6 +178,9 @@
 				Base,
 			);
 			mainGroup = 100000000000000000000040;
+			packageReferences = (
+				100000000000000000000500 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			productRefGroup = 100000000000000000000041 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -188,10 +223,38 @@
 				100000000000000000000016 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift in Sources */,
 				100000000000000000000017 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift in Sources */,
 				100000000000000000000018 /* Sources/MishnehTorahApp/Views/FontInstallService.swift in Sources */,
+				100000000000000000000019 /* Sources/MishnehTorahApp/Networking/SupabaseConfig.swift in Sources */,
+				100000000000000000000021 /* Sources/MishnehTorahApp/Networking/SupabaseClientProvider.swift in Sources */,
+				100000000000000000000022 /* Sources/MishnehTorahApp/Networking/RemoteContentDTO.swift in Sources */,
+				100000000000000000000023 /* Sources/MishnehTorahApp/Networking/RemoteContentService.swift in Sources */,
+				100000000000000000000024 /* Sources/MishnehTorahApp/Sync/ContentIDGenerator.swift in Sources */,
+				100000000000000000000025 /* Sources/MishnehTorahApp/Sync/LocalContentBackfill.swift in Sources */,
+				100000000000000000000026 /* Sources/MishnehTorahApp/Sync/SyncStateStore.swift in Sources */,
+				100000000000000000000027 /* Sources/MishnehTorahApp/Sync/SyncLogger.swift in Sources */,
+				100000000000000000000028 /* Sources/MishnehTorahApp/Sync/ContentSyncService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		100000000000000000000500 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		100000000000000000000400 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 100000000000000000000500 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		100000000000000000000201 /* Debug */ = {
@@ -309,6 +372,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Мишне Тора";
+				INFOPLIST_KEY_MTSupabaseProjectURL = "https://inlmifnzboisiazbeuqk.supabase.co";
+				INFOPLIST_KEY_MTSupabasePublishableKey = "$(SUPABASE_PUBLISHABLE_KEY)";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -337,6 +402,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Мишне Тора";
+				INFOPLIST_KEY_MTSupabaseProjectURL = "https://inlmifnzboisiazbeuqk.supabase.co";
+				INFOPLIST_KEY_MTSupabasePublishableKey = "$(SUPABASE_PUBLISHABLE_KEY)";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

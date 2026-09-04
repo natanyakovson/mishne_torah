@@ -6,3 +6,4 @@ xcuserdata/
 *.xcuserstate
 Tools/.m770_cache/
 Tools/.sefaria_cache/
+Config/Local.xcconfig

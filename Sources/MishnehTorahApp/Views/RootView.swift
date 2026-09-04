@@ -86,10 +86,14 @@ struct RootView: View {
             isPreparingLibrary = true
             do {
                 try await SeedDataLoader.seedIfNeeded(context: modelContext)
+                isPreparingLibrary = false
+                Task { @MainActor in
+                    await ContentSyncService.shared.syncNow(context: modelContext)
+                }
             } catch {
                 preparationError = error.localizedDescription
+                isPreparingLibrary = false
             }
-            isPreparingLibrary = false
         }
     }
 }

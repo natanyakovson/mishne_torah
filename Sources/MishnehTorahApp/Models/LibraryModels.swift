@@ -5,6 +5,10 @@ import SwiftUI
 @Model
 final class MTBook {
     @Attribute(.unique) var id: UUID
+    var contentID: String?
+    var remoteID: String?
+    var contentVersion: Int?
+    var deletedAt: Date?
     var order: Int
     var titleHebrew: String
     var titleRussian: String
@@ -12,6 +16,10 @@ final class MTBook {
 
     init(id: UUID = UUID(), order: Int, titleHebrew: String, titleRussian: String, sections: [MTSection] = []) {
         self.id = id
+        self.contentID = nil
+        self.remoteID = nil
+        self.contentVersion = nil
+        self.deletedAt = nil
         self.order = order
         self.titleHebrew = titleHebrew
         self.titleRussian = titleRussian
@@ -22,6 +30,10 @@ final class MTBook {
 @Model
 final class MTSection {
     @Attribute(.unique) var id: UUID
+    var contentID: String?
+    var remoteID: String?
+    var contentVersion: Int?
+    var deletedAt: Date?
     var order: Int
     var titleHebrew: String
     var titleRussian: String
@@ -30,6 +42,10 @@ final class MTSection {
 
     init(id: UUID = UUID(), order: Int, titleHebrew: String, titleRussian: String, chapters: [MTChapter] = []) {
         self.id = id
+        self.contentID = nil
+        self.remoteID = nil
+        self.contentVersion = nil
+        self.deletedAt = nil
         self.order = order
         self.titleHebrew = titleHebrew
         self.titleRussian = titleRussian
@@ -40,12 +56,24 @@ final class MTSection {
 @Model
 final class MTChapter {
     @Attribute(.unique) var id: UUID
+    var contentID: String?
+    var remoteID: String?
+    var contentVersion: Int?
+    var deletedAt: Date?
+    var m770ID: String?
+    var m770URL: String?
     var number: Int
     var section: MTSection?
     @Relationship(deleteRule: .cascade, inverse: \MTHalakhah.chapter) var halakhot: [MTHalakhah]
 
     init(id: UUID = UUID(), number: Int, halakhot: [MTHalakhah] = []) {
         self.id = id
+        self.contentID = nil
+        self.remoteID = nil
+        self.contentVersion = nil
+        self.deletedAt = nil
+        self.m770ID = nil
+        self.m770URL = nil
         self.number = number
         self.halakhot = halakhot
     }
@@ -54,6 +82,12 @@ final class MTChapter {
 @Model
 final class MTHalakhah {
     @Attribute(.unique) var id: UUID
+    var contentID: String?
+    var remoteID: String?
+    var contentVersion: Int?
+    var deletedAt: Date?
+    var partIndex: Int?
+    var sortOrder: Int?
     var number: Int
     var hebrewText: String
     var russianText: String?
@@ -62,6 +96,12 @@ final class MTHalakhah {
 
     init(id: UUID = UUID(), number: Int, hebrewText: String, russianText: String? = nil, notes: [String] = []) {
         self.id = id
+        self.contentID = nil
+        self.remoteID = nil
+        self.contentVersion = nil
+        self.deletedAt = nil
+        self.partIndex = nil
+        self.sortOrder = nil
         self.number = number
         self.hebrewText = hebrewText
         self.russianText = russianText

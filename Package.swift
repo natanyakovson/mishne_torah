@@ -12,12 +12,22 @@ let package = Package(
     products: [
         .executable(name: "MishnehTorahApp", targets: ["MishnehTorahApp"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/supabase/supabase-swift", from: "2.0.0")
+    ],
     targets: [
         .executableTarget(
             name: "MishnehTorahApp",
+            dependencies: [
+                .product(name: "Supabase", package: "supabase-swift")
+            ],
             resources: [
-                .process("Resources")
+                .process("Resources/seed_books.json")
             ]
+        ),
+        .testTarget(
+            name: "MishnehTorahAppTests",
+            dependencies: ["MishnehTorahApp"]
         )
     ]
 )

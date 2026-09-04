@@ -1,0 +1,4 @@
+// Copy this file to Config/Local.xcconfig and put the public Supabase key there.
+// Config/Local.xcconfig is ignored by git.
+
+SUPABASE_PUBLISHABLE_KEY = paste_publishable_key_here
