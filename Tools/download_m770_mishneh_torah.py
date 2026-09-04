@@ -72,6 +72,21 @@ def strip_russian_number(value):
     return re.sub(r"^\s*\d+[.)]?\s*", "", value).strip()
 
 
+def split_russian_number(value):
+    match = re.match(r"^\s*(\d+)[.)]?\s*(.*)", value.strip(), flags=re.S)
+    if match:
+        return int(match.group(1)), match.group(2).strip()
+    return None, value.strip()
+
+
+def is_standalone_note_row(raw_russian, russian, hebrew):
+    if hebrew:
+        return False
+    if re.match(r"^\s*<(i|em)\b", raw_russian or "", flags=re.I):
+        return True
+    return russian.lower().startswith("примечание")
+
+
 def normalize_book_title(order, raw_title):
     hebrew, russian = BOOK_TITLES.get(order, ("", clean_text(raw_title)))
     return hebrew, russian
@@ -195,13 +210,19 @@ def parse_chapter(url):
         if rus_match is None and heb_match is None:
             continue
 
-        russian = strip_russian_number(clean_text(rus_match.group(1) if rus_match else ""))
+        raw_russian = rus_match.group(1) if rus_match else ""
+        russian_number, russian = split_russian_number(clean_text(raw_russian))
         hebrew = clean_text(heb_match.group(1) if heb_match else "")
         if not russian and not hebrew:
             continue
 
+        if is_standalone_note_row(raw_russian, russian, hebrew):
+            if halakhot:
+                halakhot[-1].setdefault("notes", []).append(russian)
+            continue
+
         halakhot.append({
-            "number": len(halakhot) + 1,
+            "number": russian_number or len(halakhot) + 1,
             "hebrewText": hebrew,
             "russianText": russian,
         })

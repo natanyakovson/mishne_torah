@@ -19,19 +19,28 @@ extension MTChapter {
 }
 
 extension MTHalakhah {
+    var notes: [String] {
+        guard let notesJSON,
+              let data = notesJSON.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return decoded
+    }
+
     var reference: String {
         let chapterText = chapter.map { "гл. \($0.number)" } ?? "гл. ?"
         let sectionText = chapter?.section?.titleRussian ?? "Раздел"
         let bookText = chapter?.section?.book?.titleRussian ?? "Книга"
-        return "\(bookText), \(sectionText), \(chapterText), галаха \(number)"
+        return "\(bookText), \(sectionText), \(chapterText), закон \(number)"
     }
 
     var russianDisplayText: String {
-        russianText ?? "Русский текст для этой галахи ещё не импортирован."
+        russianText ?? "Русский текст для этого закона ещё не импортирован."
     }
 
     var hebrewDisplayText: String {
-        hebrewText.isEmpty ? "Иврит для этой галахи не найден в источнике." : hebrewText
+        hebrewText.isEmpty ? "Иврит для этого закона не найден в источнике." : hebrewText
     }
 
     var searchPreviewText: String {
@@ -39,5 +48,9 @@ extension MTHalakhah {
             return russianText
         }
         return hebrewText
+    }
+
+    var searchableText: String {
+        ([hebrewText, russianText ?? "", reference] + notes).joined(separator: " ")
     }
 }

@@ -2,15 +2,15 @@ import Foundation
 import SwiftData
 
 enum SeedDataLoader {
-    private static let expectedMinimumHalakhot = 10_000
+    private static let expectedHalakhot = 15_066
 
-    static func seedIfNeeded(context: ModelContext) throws {
+    static func seedIfNeeded(context: ModelContext) async throws {
         let bookDescriptor = FetchDescriptor<MTBook>()
         let halakhahDescriptor = FetchDescriptor<MTHalakhah>()
         let bookCount = try context.fetchCount(bookDescriptor)
         let halakhahCount = try context.fetchCount(halakhahDescriptor)
 
-        if bookCount == 14, halakhahCount >= expectedMinimumHalakhot {
+        if bookCount == 14, halakhahCount == expectedHalakhot {
             ensureSettingsExist(context: context)
             return
         }
@@ -18,11 +18,14 @@ enum SeedDataLoader {
         try replaceLibraryData(context: context)
         ensureSettingsExist(context: context)
 
+        var insertedHalakhot = 0
         for bookSeed in SeedBook.all {
+            try Task.checkCancellation()
             let book = MTBook(order: bookSeed.order, titleHebrew: bookSeed.titleHebrew, titleRussian: bookSeed.titleRussian)
             context.insert(book)
 
             for sectionSeed in bookSeed.sections {
+                try Task.checkCancellation()
                 let section = MTSection(order: sectionSeed.order, titleHebrew: sectionSeed.titleHebrew, titleRussian: sectionSeed.titleRussian)
                 section.book = book
                 book.sections.append(section)
@@ -38,11 +41,18 @@ enum SeedDataLoader {
                         let halakhah = MTHalakhah(
                             number: halakhahSeed.number,
                             hebrewText: halakhahSeed.hebrewText,
-                            russianText: halakhahSeed.russianText
+                            russianText: halakhahSeed.russianText,
+                            notes: halakhahSeed.notes
                         )
                         halakhah.chapter = chapter
                         chapter.halakhot.append(halakhah)
                         context.insert(halakhah)
+                        insertedHalakhot += 1
+
+                        if insertedHalakhot.isMultiple(of: 500) {
+                            try context.save()
+                            await Task.yield()
+                        }
                     }
                 }
             }
@@ -119,6 +129,29 @@ struct SeedHalakhah: Decodable {
     let number: Int
     let hebrewText: String
     let russianText: String?
+    let notes: [String]
+
+    private enum CodingKeys: String, CodingKey {
+        case number
+        case hebrewText
+        case russianText
+        case notes
+    }
+
+    init(number: Int, hebrewText: String, russianText: String?, notes: [String] = []) {
+        self.number = number
+        self.hebrewText = hebrewText
+        self.russianText = russianText
+        self.notes = notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        number = try container.decode(Int.self, forKey: .number)
+        hebrewText = try container.decode(String.self, forKey: .hebrewText)
+        russianText = try container.decodeIfPresent(String.self, forKey: .russianText)
+        notes = try container.decodeIfPresent([String].self, forKey: .notes) ?? []
+    }
 }
 
 private extension SeedBook {

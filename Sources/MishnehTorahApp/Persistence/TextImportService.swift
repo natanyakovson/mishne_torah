@@ -25,7 +25,8 @@ enum TextImportService {
                         let halakhah = MTHalakhah(
                             number: halakhahSeed.number,
                             hebrewText: halakhahSeed.hebrewText,
-                            russianText: halakhahSeed.russianText
+                            russianText: halakhahSeed.russianText,
+                            notes: halakhahSeed.notes
                         )
                         halakhah.chapter = chapter
                         chapter.halakhot.append(halakhah)

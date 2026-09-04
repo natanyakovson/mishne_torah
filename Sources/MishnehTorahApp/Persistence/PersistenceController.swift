@@ -14,6 +14,7 @@ struct PersistenceController {
             MTHalakhah.self,
             MTBookmark.self,
             MTReadingHistory.self,
+            MTTextHighlight.self,
             MTReaderSettings.self
         ])
 
@@ -21,7 +22,6 @@ struct PersistenceController {
 
         do {
             container = try ModelContainer(for: schema, configurations: [configuration])
-            try SeedDataLoader.seedIfNeeded(context: ModelContext(container))
         } catch {
             fatalError("Failed to create SwiftData container: \(error)")
         }

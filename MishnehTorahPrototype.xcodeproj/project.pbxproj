@@ -21,6 +21,10 @@
 		100000000000000000000012 /* Sources/MishnehTorahApp/Views/SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000112 /* Sources/MishnehTorahApp/Views/SettingsView.swift */; };
 		100000000000000000000013 /* Sources/MishnehTorahApp/Views/ModelHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000113 /* Sources/MishnehTorahApp/Views/ModelHelpers.swift */; };
 		100000000000000000000014 /* Sources/MishnehTorahApp/Resources/seed_books.json in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000114 /* Sources/MishnehTorahApp/Resources/seed_books.json */; };
+		100000000000000000000015 /* Sources/MishnehTorahApp/Resources/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000115 /* Sources/MishnehTorahApp/Resources/Assets.xcassets */; };
+		100000000000000000000016 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000116 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift */; };
+		100000000000000000000017 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000117 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift */; };
+		100000000000000000000018 /* Sources/MishnehTorahApp/Views/FontInstallService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000118 /* Sources/MishnehTorahApp/Views/FontInstallService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +43,10 @@
 		100000000000000000000112 /* Sources/MishnehTorahApp/Views/SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Views/SettingsView.swift; sourceTree = "<group>"; };
 		100000000000000000000113 /* Sources/MishnehTorahApp/Views/ModelHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Views/ModelHelpers.swift; sourceTree = "<group>"; };
 		100000000000000000000114 /* Sources/MishnehTorahApp/Resources/seed_books.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Sources/MishnehTorahApp/Resources/seed_books.json; sourceTree = "<group>"; };
+		100000000000000000000115 /* Sources/MishnehTorahApp/Resources/Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Sources/MishnehTorahApp/Resources/Assets.xcassets; sourceTree = "<group>"; };
+		100000000000000000000116 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift; sourceTree = "<group>"; };
+		100000000000000000000117 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Views/AppDateFormatter.swift; sourceTree = "<group>"; };
+		100000000000000000000118 /* Sources/MishnehTorahApp/Views/FontInstallService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/MishnehTorahApp/Views/FontInstallService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -85,6 +93,10 @@
 				100000000000000000000112 /* Sources/MishnehTorahApp/Views/SettingsView.swift */,
 				100000000000000000000113 /* Sources/MishnehTorahApp/Views/ModelHelpers.swift */,
 				100000000000000000000114 /* Sources/MishnehTorahApp/Resources/seed_books.json */,
+				100000000000000000000115 /* Sources/MishnehTorahApp/Resources/Assets.xcassets */,
+				100000000000000000000116 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift */,
+				100000000000000000000117 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift */,
+				100000000000000000000118 /* Sources/MishnehTorahApp/Views/FontInstallService.swift */,
 			);
 			name = Sources;
 			sourceTree = "<group>";
@@ -149,6 +161,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000014 /* Sources/MishnehTorahApp/Resources/seed_books.json in Resources */,
+				100000000000000000000015 /* Sources/MishnehTorahApp/Resources/Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -172,6 +185,9 @@
 				100000000000000000000011 /* Sources/MishnehTorahApp/Views/SavedView.swift in Sources */,
 				100000000000000000000012 /* Sources/MishnehTorahApp/Views/SettingsView.swift in Sources */,
 				100000000000000000000013 /* Sources/MishnehTorahApp/Views/ModelHelpers.swift in Sources */,
+				100000000000000000000016 /* Sources/MishnehTorahApp/Views/ReadingCycleSchedule.swift in Sources */,
+				100000000000000000000017 /* Sources/MishnehTorahApp/Views/AppDateFormatter.swift in Sources */,
+				100000000000000000000018 /* Sources/MishnehTorahApp/Views/FontInstallService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -285,20 +301,21 @@
 		100000000000000000000301 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D287TYMZPB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Мишне Тора";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.local.MishnehTorahApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.natanyakovson.mishnetorah;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -312,20 +329,21 @@
 		100000000000000000000302 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = D287TYMZPB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Мишне Тора";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.local.MishnehTorahApp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.natanyakovson.mishnetorah;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

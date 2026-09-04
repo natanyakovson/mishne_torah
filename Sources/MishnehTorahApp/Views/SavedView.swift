@@ -7,10 +7,10 @@ struct SavedView: View {
     @Query(sort: \MTBookmark.createdAt, order: .reverse) private var bookmarks: [MTBookmark]
     @Query(sort: \MTReadingHistory.lastReadAt, order: .reverse) private var history: [MTReadingHistory]
     @State private var mode: SavedMode = .bookmarks
-    @State private var selectedChapter: MTChapter?
+    @State private var isConfirmingClearBookmarks = false
 
     var body: some View {
-        NavigationSplitView {
+        NavigationStack {
             List {
                 SefariaSectionTitle("Личный кабинет", subtitle: "Закладки и история чтения")
                     .listRowBackground(Color.clear)
@@ -27,22 +27,21 @@ struct SavedView: View {
 
                 switch mode {
                 case .bookmarks:
-                    ForEach(bookmarks) { bookmark in
-                        if let halakhah = bookmark.halakhah {
-                            SavedRow(halakhah: halakhah, date: bookmark.createdAt)
-                                .onTapGesture {
-                                    selectedChapter = halakhah.chapter
-                                }
+                    if bookmarks.isEmpty {
+                        ContentUnavailableView("Закладок пока нет", systemImage: "bookmark")
+                            .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(bookmarks) { bookmark in
+                            if let halakhah = bookmark.halakhah {
+                                SavedLink(halakhah: halakhah, date: bookmark.createdAt)
+                            }
                         }
+                        .onDelete(perform: deleteBookmarks)
                     }
-                    .onDelete(perform: deleteBookmarks)
                 case .history:
                     ForEach(history.prefix(100)) { item in
                         if let halakhah = item.halakhah {
-                            SavedRow(halakhah: halakhah, date: item.lastReadAt)
-                                .onTapGesture {
-                                    selectedChapter = halakhah.chapter
-                                }
+                            SavedLink(halakhah: halakhah, date: item.lastReadAt)
                         }
                     }
                 }
@@ -50,11 +49,23 @@ struct SavedView: View {
             .scrollContentBackground(.hidden)
             .background(SefariaStyle.background(for: colorScheme))
             .navigationTitle("Сохранённое")
-        } detail: {
-            if let selectedChapter {
-                ReaderView(chapter: selectedChapter)
-            } else {
-                ContentUnavailableView("Выберите запись", systemImage: "bookmark")
+            .toolbar {
+                if mode == .bookmarks, !bookmarks.isEmpty {
+                    Button(role: .destructive) {
+                        isConfirmingClearBookmarks = true
+                    } label: {
+                        Label("Очистить", systemImage: "trash")
+                    }
+                    .help("Очистить все закладки")
+                }
+            }
+            .confirmationDialog("Удалить все закладки?", isPresented: $isConfirmingClearBookmarks, titleVisibility: .visible) {
+                Button("Удалить все закладки", role: .destructive) {
+                    clearAllBookmarks()
+                }
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("Это действие нельзя отменить.")
             }
         }
     }
@@ -64,6 +75,30 @@ struct SavedView: View {
             modelContext.delete(bookmarks[index])
         }
         try? modelContext.save()
+    }
+
+    private func clearAllBookmarks() {
+        for bookmark in bookmarks {
+            modelContext.delete(bookmark)
+        }
+        try? modelContext.save()
+    }
+}
+
+struct SavedLink: View {
+    let halakhah: MTHalakhah
+    let date: Date
+
+    var body: some View {
+        NavigationLink {
+            if let chapter = halakhah.chapter {
+                ReaderView(chapter: chapter)
+            } else {
+                ContentUnavailableView("Глава не найдена", systemImage: "bookmark")
+            }
+        } label: {
+            SavedRow(halakhah: halakhah, date: date)
+        }
     }
 }
 
