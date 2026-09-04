@@ -45,6 +45,13 @@ from (
 ) duplicates;
 
 select
+  'books content_hash valid' as check_name,
+  count(*) = 0 as ok,
+  count(*) as invalid_count
+from public.books
+where content_hash is null or content_hash !~ '^[0-9a-f]{64}$';
+
+select
   'duplicate section content_id' as check_name,
   count(*) = 0 as ok,
   count(*) as duplicate_groups
@@ -54,6 +61,13 @@ from (
   group by content_id
   having count(*) > 1
 ) duplicates;
+
+select
+  'sections content_hash valid' as check_name,
+  count(*) = 0 as ok,
+  count(*) as invalid_count
+from public.sections
+where content_hash is null or content_hash !~ '^[0-9a-f]{64}$';
 
 select
   'duplicate chapter content_id' as check_name,
@@ -67,6 +81,13 @@ from (
 ) duplicates;
 
 select
+  'chapters content_hash valid' as check_name,
+  count(*) = 0 as ok,
+  count(*) as invalid_count
+from public.chapters
+where content_hash is null or content_hash !~ '^[0-9a-f]{64}$';
+
+select
   'duplicate halakhah content_id' as check_name,
   count(*) = 0 as ok,
   count(*) as duplicate_groups
@@ -76,6 +97,13 @@ from (
   group by content_id
   having count(*) > 1
 ) duplicates;
+
+select
+  'halakhot content_hash valid' as check_name,
+  count(*) = 0 as ok,
+  count(*) as invalid_count
+from public.halakhot
+where content_hash is null or content_hash !~ '^[0-9a-f]{64}$';
 
 select
   'orphan sections' as check_name,

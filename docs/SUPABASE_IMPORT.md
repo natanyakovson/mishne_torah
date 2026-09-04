@@ -7,6 +7,7 @@ This step does not connect Supabase to the iOS/macOS app. The app continues to u
 ## Files
 
 - Migration: `supabase/migrations/001_content_schema.sql`
+- Migration: `supabase/migrations/002_content_hash.sql`
 - Import tool: `Tools/import_seed_to_supabase.py`
 - Verification SQL: `supabase/verification.sql`
 - Seed data: `Sources/MishnehTorahApp/Resources/seed_books.json`
@@ -26,6 +27,23 @@ The import tool generates deterministic ids:
 
 This makes every minimal text block stable and unique without relying on random UUIDs.
 
+## Content Hashes
+
+Every content row also stores `content_hash`, a deterministic SHA-256 hash built only from meaningful content fields. The hash never includes generated UUIDs, `created_at`, or `updated_at`.
+
+For example, a halakhah hash includes:
+
+- parent chapter `content_id`;
+- `law_number`;
+- `part_index`;
+- Russian text;
+- Hebrew text;
+- notes;
+- `sort_order`;
+- publication/deletion fields.
+
+During import, the tool fetches existing `content_id` and `content_hash` values from Supabase before updating a table. If the hash is unchanged, the row is skipped completely, so its `updated_at` and `content_version` stay untouched. This prevents a one-line text correction from making the entire corpus look changed to future delta sync.
+
 ## Apply The Migration
 
 Option A: Supabase Dashboard
@@ -35,6 +53,9 @@ Option A: Supabase Dashboard
 3. Open `supabase/migrations/001_content_schema.sql`.
 4. Copy the SQL into the editor.
 5. Run it.
+6. Open `supabase/migrations/002_content_hash.sql`.
+7. Copy the SQL into the editor.
+8. Run it.
 
 Option B: Supabase CLI
 
@@ -91,6 +112,17 @@ Expected result:
 - 16168 unique content ids across all content tables
 - 0 content id collisions
 
+To test the hash-aware behavior without contacting Supabase:
+
+```bash
+python3 Tools/import_seed_to_supabase.py --dry-run --simulate-import
+```
+
+The simulation should show:
+
+- first import: all rows inserted;
+- repeated import without changes: `0 inserted`, `0 updated`, all rows `unchanged`.
+
 ## Run Real Import
 
 Only run real import after the migration has been applied and environment variables are set:
@@ -100,9 +132,20 @@ cd /Users/natanyakovson/Documents/Codex/2026-08-20/referenced-chatgpt-conversati
 python3 Tools/import_seed_to_supabase.py --content-version 1
 ```
 
-The import is idempotent. It uses upsert by `content_id`, so running it again should update existing rows instead of creating duplicates.
+The import is idempotent. It uses stable `content_id` and compares `content_hash` before updating rows, so running it again does not create duplicates and does not touch unchanged rows.
 
-The importer updates `content_meta.content_version` only after all books, sections, chapters, and halakhot have been upserted successfully. If an error occurs before that point, the script exits without falsely advancing the content version.
+The importer prints per-table stats:
+
+```text
+books: inserted X, updated Y, unchanged Z
+sections: inserted X, updated Y, unchanged Z
+chapters: inserted X, updated Y, unchanged Z
+halakhot: inserted X, updated Y, unchanged Z
+```
+
+The importer updates `content_meta.content_version` only after all books, sections, chapters, and halakhot have been processed successfully and at least one content row was inserted or updated. If an error occurs before that point, the script exits without falsely advancing the content version.
+
+Full staging is intentionally not implemented yet. A network error can still leave a partially imported set of content rows. Re-running the importer is safe because rows are matched by stable `content_id`, unchanged hashes are skipped, and `content_meta` is advanced only after a complete successful run.
 
 ## Verify Import
 
@@ -115,6 +158,7 @@ The checks confirm:
 - exactly 1004 active chapters;
 - exactly 15066 active halakhot;
 - no duplicate `content_id`;
+- valid 64-character SHA-256 `content_hash` on every content row;
 - no orphan foreign keys;
 - unique `m770_id`;
 - `part_index` starts at 0 and has no gaps inside each chapter/law group;

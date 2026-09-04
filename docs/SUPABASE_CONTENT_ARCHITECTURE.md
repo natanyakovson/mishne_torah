@@ -179,11 +179,10 @@ Important findings:
 For Supabase, every law row must therefore receive a stable `content_id` that includes a disambiguator when duplicate law numbers exist. Recommended format:
 
 ```text
-mt.b{book_order}.s{section_order}.c{chapter_number}.h{law_number}
-mt.b{book_order}.s{section_order}.c{chapter_number}.h{law_number}.p{part_index}
+halakha:{m770_id}:{law_number}:{part_index}
 ```
 
-For normal rows `part_index` is omitted or stored as `1`. For duplicate law-number rows, store `part_index` as `1`, `2`, etc. This keeps the canonical order stable and allows every minimal text block to be downloaded independently.
+For normal rows `part_index` is `0`. For duplicate law-number rows, the second row gets `1`, the third row gets `2`, and so on. This keeps the canonical order stable and allows every minimal text block to be downloaded independently.
 
 ## Current Data Flow
 
@@ -236,29 +235,24 @@ Design goals:
 create extension if not exists pgcrypto;
 ```
 
-### Table: `content_versions`
+### Table: `content_meta`
 
-Stores published corpus versions. The app can check this table first before fetching changed rows.
+Stores the current published corpus version. The app can check this singleton row first before fetching changed rows.
 
 | Field | PostgreSQL type | Key | Notes |
 | --- | --- | --- | --- |
-| `id` | `bigint generated always as identity` | primary key | Internal version row id. |
-| `version` | `integer` | unique not null | Monotonic global content version. |
-| `status` | `text` | not null | `draft`, `published`, `archived`. |
-| `label` | `text` | nullable | Human label, for example `2026-09 initial import`. |
-| `source_name` | `text` | nullable | Example: `m770.org`. |
-| `source_url` | `text` | nullable | Source root URL. |
-| `notes` | `text` | nullable | Admin notes about this content release. |
-| `published_at` | `timestamptz` | nullable | Set when status becomes `published`. |
+| `id` | `smallint` | primary key default `1` | Singleton row, constrained to `id = 1`. |
+| `content_version` | `bigint` | not null | Monotonic global content version. |
+| `schema_version` | `integer` | not null default `1` | Database content schema version. |
 | `created_at` | `timestamptz` | not null default `now()` | Row creation time. |
 | `updated_at` | `timestamptz` | not null default `now()` | Row update time. |
 
 Recommended constraints:
 
 ```sql
-alter table content_versions
-add constraint content_versions_status_check
-check (status in ('draft', 'published', 'archived'));
+alter table content_meta
+add constraint content_meta_singleton
+check (id = 1);
 ```
 
 ### Table: `books`
@@ -266,14 +260,14 @@ check (status in ('draft', 'published', 'archived'));
 | Field | PostgreSQL type | Key | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | primary key default `gen_random_uuid()` | Database id. |
-| `content_id` | `text` | unique not null | Stable external id, e.g. `mt.b1`. |
-| `order_index` | `integer` | not null | Book order. |
-| `title_hebrew` | `text` | not null | Hebrew title. |
-| `title_russian` | `text` | not null | Russian title. |
+| `content_id` | `text` | unique not null | Stable external id, e.g. `book:1`. |
+| `content_hash` | `text` | not null | SHA-256 of meaningful row content. Used by the importer to skip unchanged rows. |
+| `sort_order` | `integer` | not null | Book order. |
+| `title_he` | `text` | not null default `''` | Hebrew title. |
+| `title_ru` | `text` | not null | Russian title. |
 | `source_title` | `text` | nullable | Current JSON `sourceTitle`. |
-| `content_version` | `integer` | not null references `content_versions(version)` | Version when this row was last published. |
+| `content_version` | `bigint` | not null default `1` | Version when this row was last changed/published. |
 | `is_published` | `boolean` | not null default `true` | Public read filter. |
-| `is_deleted` | `boolean` | not null default `false` | Soft delete marker. |
 | `deleted_at` | `timestamptz` | nullable | Soft deletion time. |
 | `created_at` | `timestamptz` | not null default `now()` | Creation time. |
 | `updated_at` | `timestamptz` | not null default `now()` | Update time/cursor. |
@@ -282,8 +276,8 @@ Recommended indexes:
 
 ```sql
 create unique index books_order_unique_active
-on books(order_index)
-where is_deleted = false;
+on books(sort_order)
+where deleted_at is null;
 
 create index books_delta_idx
 on books(updated_at, content_version);
@@ -295,14 +289,14 @@ on books(updated_at, content_version);
 | --- | --- | --- | --- |
 | `id` | `uuid` | primary key default `gen_random_uuid()` | Database id. |
 | `book_id` | `uuid` | foreign key references `books(id)` | Parent book. |
-| `content_id` | `text` | unique not null | Stable external id, e.g. `mt.b1.s1`. |
+| `content_id` | `text` | unique not null | Stable external id, e.g. `section:1:1`. |
+| `content_hash` | `text` | not null | SHA-256 of meaningful row content. Used by the importer to skip unchanged rows. |
 | `book_content_id` | `text` | not null | Denormalized stable parent id for client sync/import mapping. |
-| `order_index` | `integer` | not null | Section order inside book. |
-| `title_hebrew` | `text` | not null default `''` | Current seed has empty values; future admin import can fill them. |
-| `title_russian` | `text` | not null | Russian section title. |
-| `content_version` | `integer` | not null references `content_versions(version)` | Version when this row was last published. |
+| `sort_order` | `integer` | not null | Section order inside book. |
+| `title_he` | `text` | not null default `''` | Current seed has empty values; future admin import can fill them. |
+| `title_ru` | `text` | not null | Russian section title. |
+| `content_version` | `bigint` | not null default `1` | Version when this row was last changed/published. |
 | `is_published` | `boolean` | not null default `true` | Public read filter. |
-| `is_deleted` | `boolean` | not null default `false` | Soft delete marker. |
 | `deleted_at` | `timestamptz` | nullable | Soft deletion time. |
 | `created_at` | `timestamptz` | not null default `now()` | Creation time. |
 | `updated_at` | `timestamptz` | not null default `now()` | Update time/cursor. |
@@ -312,10 +306,10 @@ Recommended constraints and indexes:
 ```sql
 alter table sections
 add constraint sections_book_order_unique
-unique (book_id, order_index);
+unique (book_id, sort_order);
 
 create index sections_book_order_idx
-on sections(book_id, order_index);
+on sections(book_id, sort_order);
 
 create index sections_delta_idx
 on sections(updated_at, content_version);
@@ -327,14 +321,15 @@ on sections(updated_at, content_version);
 | --- | --- | --- | --- |
 | `id` | `uuid` | primary key default `gen_random_uuid()` | Database id. |
 | `section_id` | `uuid` | foreign key references `sections(id)` | Parent section. |
-| `content_id` | `text` | unique not null | Stable external id, e.g. `mt.b1.s1.c1`. |
+| `content_id` | `text` | unique not null | Stable external id, e.g. `chapter:13`. |
+| `content_hash` | `text` | not null | SHA-256 of meaningful row content. Used by the importer to skip unchanged rows. |
 | `section_content_id` | `text` | not null | Denormalized stable parent id for client sync/import mapping. |
-| `number` | `integer` | not null | Chapter number inside section. |
+| `chapter_number` | `integer` | not null | Chapter number inside section. |
 | `m770_id` | `integer` | unique nullable | Current JSON `m770Id`; currently present and unique for all chapters. |
 | `m770_url` | `text` | nullable | Current JSON `m770Url`. |
-| `content_version` | `integer` | not null references `content_versions(version)` | Version when this row was last published. |
+| `sort_order` | `integer` | not null | Stable order inside section. |
+| `content_version` | `bigint` | not null default `1` | Version when this row was last changed/published. |
 | `is_published` | `boolean` | not null default `true` | Public read filter. |
-| `is_deleted` | `boolean` | not null default `false` | Soft delete marker. |
 | `deleted_at` | `timestamptz` | nullable | Soft deletion time. |
 | `created_at` | `timestamptz` | not null default `now()` | Creation time. |
 | `updated_at` | `timestamptz` | not null default `now()` | Update time/cursor. |
@@ -344,10 +339,10 @@ Recommended constraints and indexes:
 ```sql
 alter table chapters
 add constraint chapters_section_number_unique
-unique (section_id, number);
+unique (section_id, chapter_number);
 
 create index chapters_section_number_idx
-on chapters(section_id, number);
+on chapters(section_id, chapter_number);
 
 create index chapters_delta_idx
 on chapters(updated_at, content_version);
@@ -361,18 +356,17 @@ This is the minimal downloadable text block table. Every row must have a stable 
 | --- | --- | --- | --- |
 | `id` | `uuid` | primary key default `gen_random_uuid()` | Database id. |
 | `chapter_id` | `uuid` | foreign key references `chapters(id)` | Parent chapter. |
-| `content_id` | `text` | unique not null | Stable id, e.g. `mt.b1.s1.c1.h1` or `mt.b8.s1.c2.h8.p2`. |
+| `content_id` | `text` | unique not null | Stable id, e.g. `halakha:13:1:0`. |
+| `content_hash` | `text` | not null | SHA-256 of meaningful row content. Used by the importer to skip unchanged rows. |
 | `chapter_content_id` | `text` | not null | Denormalized stable parent id for client sync/import mapping. |
-| `number` | `integer` | not null | Display law number. May duplicate inside a chapter due current source data. |
-| `part_index` | `integer` | not null default `1` | Disambiguates duplicate law numbers inside the same chapter. |
-| `sort_index` | `integer` | not null | Stable order inside chapter. Do not rely only on `number`. |
-| `hebrew_text` | `text` | not null default `''` | Hebrew text. Empty allowed for current 5 rows. |
-| `russian_text` | `text` | not null default `''` | Russian text. |
+| `law_number` | `integer` | not null | Display law number. May duplicate inside a chapter due current source data. |
+| `part_index` | `integer` | not null default `0` | Disambiguates duplicate law numbers inside the same chapter. |
+| `sort_order` | `integer` | not null | Stable order inside chapter. Do not rely only on `law_number`. |
+| `text_he` | `text` | not null default `''` | Hebrew text. Empty allowed for current 5 rows. |
+| `text_ru` | `text` | not null default `''` | Russian text. |
 | `notes` | `jsonb` | not null default `'[]'::jsonb` | Array of note strings or future note objects. |
-| `source_hash` | `text` | nullable | Optional SHA-256 hash of normalized text for import verification. |
-| `content_version` | `integer` | not null references `content_versions(version)` | Version when this row was last published. |
+| `content_version` | `bigint` | not null default `1` | Version when this row was last changed/published. |
 | `is_published` | `boolean` | not null default `true` | Public read filter. |
-| `is_deleted` | `boolean` | not null default `false` | Soft delete marker. |
 | `deleted_at` | `timestamptz` | nullable | Soft deletion time. |
 | `created_at` | `timestamptz` | not null default `now()` | Creation time. |
 | `updated_at` | `timestamptz` | not null default `now()` | Update time/cursor. |
@@ -382,14 +376,14 @@ Recommended constraints and indexes:
 ```sql
 alter table halakhot
 add constraint halakhot_chapter_sort_unique
-unique (chapter_id, sort_index);
+unique (chapter_id, sort_order);
 
 alter table halakhot
 add constraint halakhot_chapter_number_part_unique
-unique (chapter_id, number, part_index);
+unique (chapter_id, law_number, part_index);
 
 create index halakhot_chapter_sort_idx
-on halakhot(chapter_id, sort_index);
+on halakhot(chapter_id, sort_order);
 
 create index halakhot_delta_idx
 on halakhot(updated_at, content_version);
@@ -401,16 +395,29 @@ where is_published = true;
 
 Optional full-text indexes can be added later. For Russian/Hebrew search quality, client-side local search may remain primary until server search is intentionally designed.
 
+### Implemented Migration Names
+
+The current SQL migrations use app-facing names that match the import tool:
+
+- `sort_order` instead of `order_index` or `sort_index`;
+- `title_ru` and `title_he` instead of `title_russian` and `title_hebrew`;
+- `law_number` instead of `number`;
+- `text_ru` and `text_he` instead of `russian_text` and `hebrew_text`;
+- `content_meta` as the current global-version singleton.
+
+Migration `001_content_schema.sql` creates the base tables and RLS. Migration `002_content_hash.sql` adds `content_hash` to `books`, `sections`, `chapters`, and `halakhot`.
+
 ## Mapping: JSON to Supabase
 
 ### Books
 
 | JSON path | Supabase field |
 | --- | --- |
-| `book.order` | `books.order_index` |
-| generated `mt.b{order}` | `books.content_id` |
-| `book.titleHebrew` | `books.title_hebrew` |
-| `book.titleRussian` | `books.title_russian` |
+| `book.order` | `books.sort_order` |
+| generated `book:{order}` | `books.content_id` |
+| hash of meaningful fields | `books.content_hash` |
+| `book.titleHebrew` | `books.title_he` |
+| `book.titleRussian` | `books.title_ru` |
 | `book.sourceTitle` | `books.source_title` |
 
 ### Sections
@@ -418,19 +425,21 @@ Optional full-text indexes can be added later. For Russian/Hebrew search quality
 | JSON path | Supabase field |
 | --- | --- |
 | `book.order` + `section.order` | stable ids and parent mapping |
-| generated `mt.b{book_order}.s{section_order}` | `sections.content_id` |
-| generated `mt.b{book_order}` | `sections.book_content_id` |
-| `section.order` | `sections.order_index` |
-| `section.titleHebrew` | `sections.title_hebrew` |
-| `section.titleRussian` | `sections.title_russian` |
+| generated `section:{book_order}:{section_order}` | `sections.content_id` |
+| hash of meaningful fields | `sections.content_hash` |
+| resolved generated `book:{book_order}` | `sections.book_id` |
+| `section.order` | `sections.sort_order` |
+| `section.titleHebrew` | `sections.title_he` |
+| `section.titleRussian` | `sections.title_ru` |
 
 ### Chapters
 
 | JSON path | Supabase field |
 | --- | --- |
-| generated `mt.b{book_order}.s{section_order}.c{chapter_number}` | `chapters.content_id` |
-| generated `mt.b{book_order}.s{section_order}` | `chapters.section_content_id` |
-| `chapter.number` | `chapters.number` |
+| generated `chapter:{m770Id}` | `chapters.content_id` |
+| hash of meaningful fields | `chapters.content_hash` |
+| resolved generated `section:{book_order}:{section_order}` | `chapters.section_id` |
+| `chapter.number` | `chapters.chapter_number` |
 | `chapter.m770Id` | `chapters.m770_id` |
 | `chapter.m770Url` | `chapters.m770_url` |
 
@@ -438,39 +447,43 @@ Optional full-text indexes can be added later. For Russian/Hebrew search quality
 
 | JSON path | Supabase field |
 | --- | --- |
-| generated `mt.b{book_order}.s{section_order}.c{chapter_number}.h{law_number}` | `halakhot.content_id` for unique law-number paths |
-| generated `...h{law_number}.p{part_index}` | `halakhot.content_id` for duplicate law-number paths |
-| generated chapter id | `halakhot.chapter_content_id` |
-| `halakhah.number` | `halakhot.number` |
+| generated `halakha:{m770Id}:{law_number}:{part_index}` | `halakhot.content_id` |
+| hash of meaningful fields | `halakhot.content_hash` |
+| resolved generated `chapter:{m770Id}` | `halakhot.chapter_id` |
+| `halakhah.number` | `halakhot.law_number` |
 | duplicate counter | `halakhot.part_index` |
-| array position inside chapter | `halakhot.sort_index` |
-| `halakhah.hebrewText` | `halakhot.hebrew_text` |
-| `halakhah.russianText` | `halakhot.russian_text` |
+| array position inside chapter | `halakhot.sort_order` |
+| `halakhah.hebrewText` | `halakhot.text_he` |
+| `halakhah.russianText` | `halakhot.text_ru` |
 | `halakhah.notes` | `halakhot.notes` |
 
 ## Import Strategy for `seed_books.json`
 
 Recommended first import:
 
-1. Create a `content_versions` row with `status = 'draft'`, e.g. `version = 1`.
+1. Choose the target `content_version`, e.g. `1`.
 2. Parse `seed_books.json` with a script that validates:
    - total counts;
    - required fields;
    - unique book, section, and chapter paths;
    - duplicate law-number paths and generated `part_index`;
    - unique final `content_id` for every law row.
-3. Upsert books by `content_id`.
-4. Upsert sections by `content_id`, linking to books.
-5. Upsert chapters by `content_id`, linking to sections and preserving `m770_id` and `m770_url`.
-6. Upsert halakhot by `content_id`, linking to chapters.
-7. Verify counts in PostgreSQL:
+3. Compute deterministic `content_hash` for every row from meaningful fields only. Do not include UUIDs, `created_at`, or `updated_at`.
+4. Fetch existing remote rows by `content_id` and `content_hash`.
+5. Insert rows whose `content_id` is new.
+6. Update only rows whose `content_hash` changed.
+7. Skip unchanged rows completely so their `updated_at` and `content_version` do not change.
+8. Upsert books, sections, chapters, and halakhot in parent-first order.
+9. Verify counts in PostgreSQL:
    - 14 books;
    - 84 sections;
    - 1004 chapters;
    - 15066 laws.
-8. Mark the version as `published` and set `published_at`.
+10. Update `content_meta.content_version` only after the full import succeeds and at least one content row changed.
 
-For future imports, never delete rows physically as the first operation. Use `is_deleted = true` and `deleted_at` so clients can safely apply deletions only after they have received a valid tombstone.
+For future imports, never delete rows physically as the first operation. Use `deleted_at` so clients can safely apply deletions only after they have received a valid tombstone.
+
+The current importer does not yet use a full staging transaction. If a network failure happens midway, partial rows may have been inserted or updated. This is acceptable for the current admin-only phase because `content_meta` is not advanced until the end, and repeating the importer is idempotent: existing matching hashes are skipped and only missing/changed rows are sent again.
 
 ## Offline-First Sync Strategy
 
@@ -505,7 +518,9 @@ Two compatible approaches are possible.
 
 ### Preferred: Global Version + Updated Cursor
 
-Use `content_versions.version` as a coarse global version and each table's `updated_at` as a fine-grained cursor.
+Use `content_meta.content_version` as a coarse global version and each table's `updated_at` as a fine-grained cursor.
+
+Hash-aware import is required for this to stay efficient. Without `content_hash`, an upsert of the entire seed would fire `updated_at` triggers across all rows and make every law look changed. With `content_hash`, a correction to one law changes only that law row, plus `content_meta` after the successful import.
 
 Client flow:
 
@@ -541,10 +556,10 @@ limit 1000;
 For deleted rows:
 
 ```sql
-select content_id, updated_at, deleted_at, is_deleted
+select content_id, updated_at, deleted_at
 from halakhot
 where updated_at > :last_remote_updated_at
-  and is_deleted = true
+  and deleted_at is not null
 order by updated_at asc, content_id asc;
 ```
 
@@ -562,7 +577,7 @@ order by updated_at asc, content_id asc;
 Enable RLS on every content table:
 
 ```sql
-alter table content_versions enable row level security;
+alter table content_meta enable row level security;
 alter table books enable row level security;
 alter table sections enable row level security;
 alter table chapters enable row level security;
@@ -574,35 +589,35 @@ Public client can only read published, non-deleted content.
 Example policies:
 
 ```sql
-create policy "Public can read published content versions"
-on content_versions
+create policy "Public can read content meta"
+on content_meta
 for select
 to anon, authenticated
-using (status = 'published');
+using (true);
 
 create policy "Public can read published books"
 on books
 for select
 to anon, authenticated
-using (is_published = true and is_deleted = false);
+using (is_published = true and deleted_at is null);
 
 create policy "Public can read published sections"
 on sections
 for select
 to anon, authenticated
-using (is_published = true and is_deleted = false);
+using (is_published = true and deleted_at is null);
 
 create policy "Public can read published chapters"
 on chapters
 for select
 to anon, authenticated
-using (is_published = true and is_deleted = false);
+using (is_published = true and deleted_at is null);
 
 create policy "Public can read published halakhot"
 on halakhot
 for select
 to anon, authenticated
-using (is_published = true and is_deleted = false);
+using (is_published = true and deleted_at is null);
 ```
 
 Do not create public insert/update/delete policies.
