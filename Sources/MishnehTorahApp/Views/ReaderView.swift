@@ -86,6 +86,7 @@ struct ReaderView: View {
         }
         .background(SefariaStyle.background(for: colorScheme))
         .navigationTitle("Глава \(chapter.number)")
+        .homeNavigationButton()
         .safeAreaInset(edge: .bottom) {
             ReaderBottomBar(
                 chapterTitle: "Глава \(chapter.number)",
@@ -203,8 +204,7 @@ struct ReaderView: View {
     }
 
     private func returnToLibraryRoot() {
-        appNavigation.selectedTab = .library
-        NotificationCenter.default.post(name: .returnToLibraryRoot, object: nil)
+        appNavigation.returnToLibraryRoot()
     }
 }
 

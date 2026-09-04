@@ -8,6 +8,7 @@ struct SavedView: View {
     @Query(sort: \MTReadingHistory.lastReadAt, order: .reverse) private var history: [MTReadingHistory]
     @State private var mode: SavedMode = .bookmarks
     @State private var isConfirmingClearBookmarks = false
+    @State private var navigationResetID = UUID()
 
     var body: some View {
         NavigationStack {
@@ -49,6 +50,7 @@ struct SavedView: View {
             .scrollContentBackground(.hidden)
             .background(SefariaStyle.background(for: colorScheme))
             .navigationTitle("Сохранённое")
+            .homeNavigationButton()
             .toolbar {
                 if mode == .bookmarks, !bookmarks.isEmpty {
                     Button(role: .destructive) {
@@ -67,6 +69,10 @@ struct SavedView: View {
             } message: {
                 Text("Это действие нельзя отменить.")
             }
+        }
+        .id(navigationResetID)
+        .onReceive(NotificationCenter.default.publisher(for: .returnToLibraryRoot)) { _ in
+            navigationResetID = UUID()
         }
     }
 

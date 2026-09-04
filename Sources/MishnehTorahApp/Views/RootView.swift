@@ -10,10 +10,41 @@ enum AppTab: Hashable {
 
 final class AppNavigationState: ObservableObject {
     @Published var selectedTab: AppTab = .library
+
+    func returnToLibraryRoot() {
+        selectedTab = .library
+        NotificationCenter.default.post(name: .returnToLibraryRoot, object: nil)
+    }
 }
 
 extension Notification.Name {
     static let returnToLibraryRoot = Notification.Name("returnToLibraryRoot")
+}
+
+struct HomeNavigationButtonModifier: ViewModifier {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appNavigation: AppNavigationState
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    appNavigation.returnToLibraryRoot()
+                    dismiss()
+                } label: {
+                    Image(systemName: "house")
+                }
+                .accessibilityLabel("На главную")
+                .help("На главную")
+            }
+        }
+    }
+}
+
+extension View {
+    func homeNavigationButton() -> some View {
+        modifier(HomeNavigationButtonModifier())
+    }
 }
 
 struct RootView: View {

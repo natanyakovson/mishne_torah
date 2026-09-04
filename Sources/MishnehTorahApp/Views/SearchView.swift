@@ -8,6 +8,7 @@ struct SearchView: View {
     @State private var results: [MTHalakhah] = []
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
+    @State private var navigationResetID = UUID()
 
     var body: some View {
         NavigationStack {
@@ -35,6 +36,7 @@ struct SearchView: View {
             .background(SefariaStyle.background(for: colorScheme))
             .searchable(text: $query, prompt: "Поиск по русскому, ивриту или ссылке")
             .navigationTitle("Поиск")
+            .homeNavigationButton()
             .overlay {
                 if isSearching {
                     ProgressView("Ищу...")
@@ -53,6 +55,10 @@ struct SearchView: View {
                 searchTask?.cancel()
                 performSearch()
             }
+        }
+        .id(navigationResetID)
+        .onReceive(NotificationCenter.default.publisher(for: .returnToLibraryRoot)) { _ in
+            navigationResetID = UUID()
         }
     }
 

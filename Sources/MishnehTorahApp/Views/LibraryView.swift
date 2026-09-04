@@ -324,6 +324,7 @@ struct SectionListView: View {
         .scrollContentBackground(.hidden)
         .background(SefariaStyle.background(for: colorScheme))
         .navigationTitle(book.titleRussian)
+        .homeNavigationButton()
     }
 }
 
@@ -393,6 +394,7 @@ struct ChapterGridView: View {
         }
         .background(SefariaStyle.background(for: colorScheme))
         .navigationTitle("Главы")
+        .homeNavigationButton()
     }
 }
 

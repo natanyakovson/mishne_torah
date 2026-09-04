@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Query private var settings: [MTReaderSettings]
     @State private var isImportingFont = false
     @State private var fontImportMessage: String?
+    @State private var navigationResetID = UUID()
 
     private static let fontContentTypes: [UTType] = [
         UTType(filenameExtension: "ttf"),
@@ -126,12 +127,17 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(SefariaStyle.background(for: colorScheme))
             .navigationTitle("Настройки")
+            .homeNavigationButton()
             .onAppear {
                 FontInstallService.registerStoredFont(fileName: activeSettings.customFontFileName)
             }
             .fileImporter(isPresented: $isImportingFont, allowedContentTypes: Self.fontContentTypes) { result in
                 importFont(result)
             }
+        }
+        .id(navigationResetID)
+        .onReceive(NotificationCenter.default.publisher(for: .returnToLibraryRoot)) { _ in
+            navigationResetID = UUID()
         }
     }
 
