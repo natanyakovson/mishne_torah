@@ -94,7 +94,7 @@ struct SearchView: View {
             let descriptor = FetchDescriptor<MTHalakhah>()
             let allHalakhot = try modelContext.fetch(descriptor)
             results = Array(allHalakhot.lazy.filter { halakhah in
-                halakhah.searchableText.localizedCaseInsensitiveContains(trimmed)
+                TextSearchNormalizer.contains(halakhah.searchableText, query: trimmed)
             }.prefix(120))
         } catch {
             results = []
@@ -112,18 +112,11 @@ struct SearchView: View {
             return attributed
         }
 
-        var searchStart = preview.startIndex
-        while searchStart < preview.endIndex,
-              let range = preview.range(
-                  of: trimmed,
-                  options: [.caseInsensitive, .diacriticInsensitive],
-                  range: searchStart..<preview.endIndex
-            ) {
+        for range in TextSearchNormalizer.ranges(in: preview, matching: trimmed) {
             if let attributedRange = Range(range, in: attributed) {
                 attributed[attributedRange].backgroundColor = HighlightColor.yellow.color.opacity(0.45)
                 attributed[attributedRange].foregroundColor = .red
             }
-            searchStart = range.upperBound
         }
 
         return attributed
@@ -137,9 +130,7 @@ struct SearchView: View {
             halakhah.notes.joined(separator: " ")
         ]
 
-        guard let matchedText = candidates.first(where: {
-            $0.localizedCaseInsensitiveContains(query)
-        }) else {
+        guard let matchedText = candidates.first(where: { TextSearchNormalizer.contains($0, query: query) }) else {
             return halakhah.searchPreviewText
         }
 
@@ -147,7 +138,7 @@ struct SearchView: View {
     }
 
     private func snippet(from text: String, around query: String) -> String {
-        guard let range = text.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) else {
+        guard let range = TextSearchNormalizer.ranges(in: text, matching: query).first else {
             return text
         }
 

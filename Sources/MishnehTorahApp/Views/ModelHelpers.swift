@@ -1,5 +1,74 @@
 import Foundation
 
+enum TextSearchNormalizer {
+    static func normalized(_ text: String) -> String {
+        let folded = text
+            .precomposedStringWithCanonicalMapping
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "ru_RU"))
+        var scalars = String.UnicodeScalarView()
+
+        for scalar in folded.unicodeScalars where !isIgnoredSearchScalar(scalar) {
+            scalars.append(scalar)
+        }
+
+        return String(scalars)
+    }
+
+    static func contains(_ text: String, query: String) -> Bool {
+        let needle = normalized(query).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !needle.isEmpty else { return false }
+        return normalized(text).contains(needle)
+    }
+
+    static func ranges(in text: String, matching query: String) -> [Range<String.Index>] {
+        let needle = Array(normalized(query).trimmingCharacters(in: .whitespacesAndNewlines))
+        guard !needle.isEmpty else { return [] }
+
+        let haystack = normalizedCharactersWithSourceRanges(for: text)
+        guard haystack.characters.count >= needle.count else { return [] }
+
+        var ranges: [Range<String.Index>] = []
+        var start = 0
+        while start <= haystack.characters.count - needle.count {
+            let end = start + needle.count
+            if Array(haystack.characters[start..<end]) == needle {
+                ranges.append(haystack.sourceRanges[start].lowerBound..<haystack.sourceRanges[end - 1].upperBound)
+                start = end
+            } else {
+                start += 1
+            }
+        }
+        return ranges
+    }
+
+    private static func normalizedCharactersWithSourceRanges(for text: String) -> (characters: [Character], sourceRanges: [Range<String.Index>]) {
+        var characters: [Character] = []
+        var sourceRanges: [Range<String.Index>] = []
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            let nextIndex = text.index(after: index)
+            let sourceRange = index..<nextIndex
+            let folded = String(text[sourceRange])
+                .precomposedStringWithCanonicalMapping
+                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "ru_RU"))
+
+            for scalar in folded.unicodeScalars where !isIgnoredSearchScalar(scalar) {
+                characters.append(Character(String(scalar)))
+                sourceRanges.append(sourceRange)
+            }
+
+            index = nextIndex
+        }
+
+        return (characters, sourceRanges)
+    }
+
+    private static func isIgnoredSearchScalar(_ scalar: UnicodeScalar) -> Bool {
+        scalar.properties.isDiacritic || (0x0591...0x05C7).contains(Int(scalar.value))
+    }
+}
+
 extension MTBook {
     var sortedSections: [MTSection] {
         sections.sorted { $0.order < $1.order }

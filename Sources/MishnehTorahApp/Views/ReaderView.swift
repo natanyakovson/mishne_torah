@@ -13,6 +13,7 @@ struct ReaderView: View {
     @Query(sort: \MTTextHighlight.createdAt, order: .reverse) private var highlights: [MTTextHighlight]
     @State private var didRecordReading = false
     @State private var activeSheet: ReaderSheet?
+    @State private var isReaderMenuExpanded = false
     let chapter: MTChapter
 
     init(chapter: MTChapter) {
@@ -78,12 +79,21 @@ struct ReaderView: View {
                         .id(halakhah.id)
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 6)
             .padding(.vertical, 22)
             .padding(.bottom, 96)
-            .frame(maxWidth: 980)
+            .frame(maxWidth: 1080)
             .frame(maxWidth: .infinity)
         }
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                if isReaderMenuExpanded {
+                    withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
+                        isReaderMenuExpanded = false
+                    }
+                }
+            }
+        )
         .background(SefariaStyle.background(for: colorScheme))
         .navigationTitle("Глава \(chapter.number)")
         .homeNavigationButton()
@@ -95,7 +105,8 @@ struct ReaderView: View {
                 openSearch: { activeSheet = .search },
                 openSettings: { activeSheet = .settings },
                 toggleBookmark: toggleCurrentChapterBookmark,
-                returnHome: returnToLibraryRoot
+                returnHome: returnToLibraryRoot,
+                isExpanded: $isReaderMenuExpanded
             )
             .padding(.horizontal, 12)
             .padding(.bottom, 10)
@@ -236,12 +247,12 @@ struct ReaderBottomBar: View {
     let openSettings: () -> Void
     let toggleBookmark: () -> Void
     let returnHome: () -> Void
-    @State private var isExpanded = false
+    @Binding var isExpanded: Bool
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 10) {
             if isExpanded {
-                VStack(alignment: .trailing, spacing: 8) {
+                VStack(alignment: .trailing, spacing: 6) {
                     expandedButton(title: "Оглавление", subtitle: chapterTitle, systemImage: "line.3.horizontal") {
                         isExpanded = false
                         openContents()
@@ -280,8 +291,8 @@ struct ReaderBottomBar: View {
                 }
             } label: {
                 Image(systemName: "line.3.horizontal")
-                    .font(.title2.weight(.semibold))
-                    .frame(width: 58, height: 58)
+                    .font(.title3.weight(.semibold))
+                    .frame(width: 52, height: 52)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.white)
@@ -302,13 +313,13 @@ struct ReaderBottomBar: View {
                 }
                 Spacer(minLength: 12)
                 Image(systemName: systemImage)
-                    .font(.title2.weight(.semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(systemImage == "bookmark.fill" ? SefariaStyle.gold : .black)
-                    .frame(width: 34)
+                    .frame(width: 28)
             }
-            .frame(width: 314)
-            .frame(height: 52)
-            .padding(.horizontal, 18)
+            .frame(width: 274)
+            .frame(height: 44)
+            .padding(.horizontal, 16)
             .background(.thinMaterial)
             .clipShape(Capsule())
         }
@@ -554,14 +565,14 @@ struct HalakhahCard: View {
     let deleteHighlight: (NSRange, ReaderLanguage) -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(halakhah.number)")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(SefariaStyle.green)
-                .frame(width: 24, alignment: .trailing)
+        VStack(alignment: .leading, spacing: 12) {
+            if readerLanguage != .hebrew {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("\(halakhah.number).")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(SefariaStyle.green)
+                        .fixedSize()
 
-            VStack(alignment: .leading, spacing: 12) {
-                if readerLanguage != .hebrew {
                     SelectableHalakhahText(
                         text: halakhah.russianDisplayText,
                         textSize: textSize,
@@ -575,16 +586,19 @@ struct HalakhahCard: View {
                     } deleteHighlight: { range in
                         deleteHighlight(range, .russian)
                     }
-                }
 
-                if readerLanguage == .both {
-                    Text("Иврит")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    bookmarkButton
+                        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
                 }
+            }
 
-                if readerLanguage != .russian {
+            if readerLanguage == .hebrew {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("\(halakhah.number).")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(SefariaStyle.green)
+                        .fixedSize()
+
                     SelectableHalakhahText(
                         text: halakhah.hebrewDisplayText,
                         textSize: textSize,
@@ -598,52 +612,61 @@ struct HalakhahCard: View {
                     } deleteHighlight: { range in
                         deleteHighlight(range, .hebrew)
                     }
-                }
 
-                if readerLanguage == .russian, halakhah.russianText == nil {
-                    Text("Русский текст для этого закона ещё не импортирован.")
-                        .font(readerFont.font(size: max(textSize - 4, 16), customName: customFontName))
-                        .foregroundStyle(.secondary)
+                    bookmarkButton
+                        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
                 }
+            } else if readerLanguage == .both {
+                Text("Иврит")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
 
-                if readerLanguage != .russian, halakhah.hebrewText.isEmpty {
-                    Text("Иврит для этого закона не найден в источнике.")
-                        .font(readerFont.font(size: max(textSize - 4, 16), customName: customFontName))
-                        .foregroundStyle(.secondary)
+                SelectableHalakhahText(
+                    text: halakhah.hebrewDisplayText,
+                    textSize: textSize,
+                    lineSpacing: 8,
+                    readerFont: readerFont,
+                    customFontName: customFontName,
+                    layoutDirection: .rightToLeft,
+                    highlights: hebrewHighlights
+                ) { range, selectedText, color in
+                    addHighlight(range, selectedText, .hebrew, color)
+                } deleteHighlight: { range in
+                    deleteHighlight(range, .hebrew)
                 }
+            }
 
-                if !halakhah.notes.isEmpty {
-                    DisclosureGroup {
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(Array(halakhah.notes.enumerated()), id: \.offset) { _, note in
-                                Text(note)
-                                    .font(readerFont.font(size: max(textSize - 5, 15), customName: customFontName))
-                                    .lineSpacing(6)
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                            }
+            if readerLanguage == .russian, halakhah.russianText == nil {
+                Text("Русский текст для этого закона ещё не импортирован.")
+                    .font(readerFont.font(size: max(textSize - 4, 16), customName: customFontName))
+                    .foregroundStyle(.secondary)
+            }
+
+            if readerLanguage != .russian, halakhah.hebrewText.isEmpty {
+                Text("Иврит для этого закона не найден в источнике.")
+                    .font(readerFont.font(size: max(textSize - 4, 16), customName: customFontName))
+                    .foregroundStyle(.secondary)
+            }
+
+            if !halakhah.notes.isEmpty {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(Array(halakhah.notes.enumerated()), id: \.offset) { _, note in
+                            Text(note)
+                                .font(readerFont.font(size: max(textSize - 5, 15), customName: customFontName))
+                                .lineSpacing(6)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
                         }
-                        .padding(.top, 6)
-                    } label: {
-                        Label("Примечания", systemImage: "text.bubble")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(SefariaStyle.green)
                     }
+                    .padding(.top, 6)
+                } label: {
+                    Label("Примечания", systemImage: "text.bubble")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(SefariaStyle.green)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button {
-                toggleBookmark()
-            } label: {
-                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(isBookmarked ? SefariaStyle.gold : SefariaStyle.green)
-                    .frame(width: 30, height: 30)
-            }
-            .buttonStyle(.borderless)
-            .help(isBookmarked ? "Убрать из закладок" : "Добавить в закладки")
-            .accessibilityLabel(isBookmarked ? "Убрать из закладок" : "Добавить в закладки")
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 0)
@@ -652,6 +675,20 @@ struct HalakhahCard: View {
                 toggleBookmark()
             }
         }
+    }
+
+    private var bookmarkButton: some View {
+        Button {
+            toggleBookmark()
+        } label: {
+            Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                .font(.title3.weight(.medium))
+                .foregroundStyle(isBookmarked ? SefariaStyle.gold : SefariaStyle.green)
+                .frame(width: 28, height: 28)
+        }
+        .buttonStyle(.borderless)
+        .help(isBookmarked ? "Убрать из закладок" : "Добавить в закладки")
+        .accessibilityLabel(isBookmarked ? "Убрать из закладок" : "Добавить в закладки")
     }
 }
 

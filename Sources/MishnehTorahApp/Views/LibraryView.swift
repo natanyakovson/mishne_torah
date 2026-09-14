@@ -104,20 +104,77 @@ struct BookListView: View {
 
 struct HomeHeaderView: View {
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 10) {
             Text("רבי משה בן מימון")
                 .font(.largeTitle.weight(.semibold))
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
                 .environment(\.layoutDirection, .rightToLeft)
 
-            Link("Кодекс Маймонида - Мишне Тора", destination: URL(string: "https://m770.org/rambam/")!)
+            Text("Кодекс Маймонида - Мишне Тора")
                 .font(.title3.weight(.medium))
+                .foregroundStyle(SefariaStyle.green)
+
+            NavigationLink {
+                ProjectInfoView()
+            } label: {
+                HStack(spacing: 6) {
+                    Text("О проекте")
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                }
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(SefariaStyle.linkBlue)
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 18)
         .padding(.bottom, 18)
+    }
+}
+
+struct ProjectInfoView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private let paragraphs = [
+        "Учите книгу РАМБАМа и приближайте приход Мошиаха!",
+        "Алтер Ребе в «Законах изучения Торы» пишет, что хорошо бы каждому пройти всю Устную Тору, хотя бы раз в жизни. Есть, конечно, длинный путь — пройти все книги Талмуда, но он доступен совсем немногим.",
+        "«Мишнэ Тора» помогает осуществить этот проект почти каждому еврею. Этот труд охватывает все разделы Устной Торы — детали исполнения той или иной заповеди, постановления мудрецов, даже советы, как исправить свой характер. РАМБАМ не входит в пространные рассуждения. На красивом, ясном и очень четком языке он объясняет, как исполнить приказ Творца. Так или иначе, сейчас изучение книги РАМБАМа вошло в еврейский обиход во всех концах света.",
+        "Постановление Ребе Короля Мошиаха изучать труды РАМБАМа каждый день вышло на фарбренгене в честь последнего дня Песаха в 5744 (1984) году. Ребе дал указание начать изучение всех 1006 глав (интересно, что число 1006 соответствует по гиматрии названию этого труда «Мишнэ Тора»), 27 Нисана, чтобы приурочить окончание годового цикла ко дню рождения РАМБАМа 14 Нисана 5745 года. Но Ребе ждал сюрприз… Хасиды немножко изменили порядок и приурочили окончание не к 14 Нисана, а к 11 Нисана, преподнеся Ребе подарок к дню рождения. 83 раздела были закончены в 83-й день рождения самого великого лидера всего еврейского народа.",
+        "С тех пор этот обычай распространился среди евреев всего мира. Одной из целей этого постановления является укрепление единства евреев, когда «единый народ» изучает «единую Тору» и соединяется с «единым Б-гом».",
+        "Во всем мире евреи изучают книгу РАМБАМа. Есть три программы (маршрута): три главы в день (заканчивают за год), по одной главе в день (заканчивают за 3 года) или «Книгу заповедей» (заканчивают за год). И как только заканчивается предыдущий цикл, начинается следующий.",
+        "От Моше до Моше не было как Моше. От великого Моше-рабейну и до великого Моше бен Маймона (РАМБАМ), не было никого подобного. Мы по сегодняшний день чествуем РАМБАМа и сегодня много людей отправятся на его могилу в Тверии, отдать долг великому из великих. Учите книгу РАМБАМа и этим приближайте приход Мошиаха!"
+    ]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("О проекте")
+                    .font(.largeTitle.weight(.bold))
+                Text("Почему изучают Мишне Тора каждый день")
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(SefariaStyle.green)
+
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(paragraphs, id: \.self) { paragraph in
+                        Text(paragraph)
+                            .font(.body)
+                            .lineSpacing(5)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(18)
+                .background(SefariaStyle.panelBackground(for: colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .padding(20)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
+        }
+        .background(SefariaStyle.background(for: colorScheme))
+        .navigationTitle("О проекте")
+        .homeNavigationButton()
     }
 }
 
@@ -367,6 +424,7 @@ struct ChapterGridView: View {
                             VStack(spacing: 6) {
                                 Text("\(chapter.number)")
                                     .font(.title3.weight(.semibold))
+                                    .foregroundStyle(SefariaStyle.green)
                                 Text("Глава")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
