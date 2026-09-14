@@ -14,11 +14,11 @@ final class ContentSyncService {
     private let logger: SyncLogging
 
     init(
-        remote: RemoteContentFetching? = ContentSyncService.makeDefaultRemote(),
+        remote: RemoteContentFetching? = nil,
         stateStore: SyncStateStoring = UserDefaultsSyncStateStore(),
         logger: SyncLogging = ConsoleSyncLogger()
     ) {
-        self.remote = remote
+        self.remote = remote ?? ContentSyncService.makeDefaultRemote()
         self.stateStore = stateStore
         self.logger = logger
     }
