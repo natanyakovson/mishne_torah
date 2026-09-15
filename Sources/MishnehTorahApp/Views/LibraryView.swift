@@ -332,6 +332,7 @@ struct DailyRambamCard: View {
 }
 
 struct DailyRambamChapterRow: View {
+    @Environment(\.colorScheme) private var colorScheme
     let chapter: MTChapter
 
     var body: some View {
@@ -340,9 +341,17 @@ struct DailyRambamChapterRow: View {
                 Text(book.titleRussian)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(section.titleRussian)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.primary)
+                HStack(spacing: 10) {
+                    Text(section.titleRussian)
+                        .font(.subheadline.weight(.medium))
+                    Spacer(minLength: 12)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                }
+                .padding(.vertical, 7)
+                .padding(.horizontal, 10)
+                .background(SefariaStyle.green.opacity(colorScheme == .dark ? 0.18 : 0.08), in: Capsule())
+                .foregroundStyle(SefariaStyle.green)
             }
 
             Text("Глава \(chapter.number)")
@@ -350,6 +359,8 @@ struct DailyRambamChapterRow: View {
                 .foregroundStyle(SefariaStyle.green)
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .accessibilityHint("Открыть чтение на сегодня")
     }
 }
 

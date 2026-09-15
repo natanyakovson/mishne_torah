@@ -7,7 +7,6 @@ import UIKit
 struct ReaderView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var appNavigation: AppNavigationState
     @Query private var settings: [MTReaderSettings]
     @Query private var bookmarks: [MTBookmark]
     @Query(sort: \MTTextHighlight.createdAt, order: .reverse) private var highlights: [MTTextHighlight]
@@ -100,12 +99,9 @@ struct ReaderView: View {
         .safeAreaInset(edge: .bottom) {
             ReaderBottomBar(
                 chapterTitle: "Глава \(chapter.number)",
-                isCurrentChapterBookmarked: isCurrentChapterBookmarked,
                 openContents: { activeSheet = .contents },
                 openSearch: { activeSheet = .search },
                 openSettings: { activeSheet = .settings },
-                toggleBookmark: toggleCurrentChapterBookmark,
-                returnHome: returnToLibraryRoot,
                 isExpanded: $isReaderMenuExpanded
             )
             .padding(.horizontal, 12)
@@ -161,16 +157,6 @@ struct ReaderView: View {
         try? modelContext.save()
     }
 
-    private var isCurrentChapterBookmarked: Bool {
-        guard let firstHalakhah = chapter.sortedHalakhot.first else { return false }
-        return isBookmarked(firstHalakhah)
-    }
-
-    private func toggleCurrentChapterBookmark() {
-        guard let firstHalakhah = chapter.sortedHalakhot.first else { return }
-        toggleBookmark(for: firstHalakhah)
-    }
-
     private func highlights(for halakhah: MTHalakhah, language: ReaderLanguage) -> [MTTextHighlight] {
         highlights.filter { highlight in
             highlight.halakhah?.id == halakhah.id &&
@@ -214,9 +200,6 @@ struct ReaderView: View {
         try? modelContext.save()
     }
 
-    private func returnToLibraryRoot() {
-        appNavigation.returnToLibraryRoot()
-    }
 }
 
 private extension MTTextHighlight {
@@ -240,19 +223,17 @@ enum ReaderSheet: String, Identifiable {
 }
 
 struct ReaderBottomBar: View {
+    @Environment(\.colorScheme) private var colorScheme
     let chapterTitle: String
-    let isCurrentChapterBookmarked: Bool
     let openContents: () -> Void
     let openSearch: () -> Void
     let openSettings: () -> Void
-    let toggleBookmark: () -> Void
-    let returnHome: () -> Void
     @Binding var isExpanded: Bool
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 10) {
             if isExpanded {
-                VStack(alignment: .trailing, spacing: 6) {
+                VStack(alignment: .trailing, spacing: 4) {
                     expandedButton(title: "Оглавление", subtitle: chapterTitle, systemImage: "line.3.horizontal") {
                         isExpanded = false
                         openContents()
@@ -266,20 +247,6 @@ struct ReaderBottomBar: View {
                     expandedButton(title: "Темы и настройки", subtitle: nil, systemImage: "textformat.size") {
                         isExpanded = false
                         openSettings()
-                    }
-
-                    expandedButton(title: "Главная", subtitle: nil, systemImage: "house") {
-                        isExpanded = false
-                        returnHome()
-                    }
-
-                    expandedButton(
-                        title: isCurrentChapterBookmarked ? "Убрать закладку" : "Добавить закладку",
-                        subtitle: nil,
-                        systemImage: isCurrentChapterBookmarked ? "bookmark.fill" : "bookmark"
-                    ) {
-                        isExpanded = false
-                        toggleBookmark()
                     }
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -308,7 +275,7 @@ struct ReaderBottomBar: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(subtitle.map { "\(title) • \($0)" } ?? title)
-                        .font(.headline.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(SefariaStyle.deepGreen)
                 }
                 Spacer(minLength: 12)
@@ -318,13 +285,24 @@ struct ReaderBottomBar: View {
                     .frame(width: 28)
             }
             .frame(width: 274)
-            .frame(height: 44)
-            .padding(.horizontal, 16)
-            .background(.thinMaterial)
+            .frame(height: 40)
+            .padding(.horizontal, 13)
+            .background(.regularMaterial, in: Capsule())
+            .background(SefariaStyle.panelBackground(for: colorScheme).opacity(0.78), in: Capsule())
             .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 3)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ReaderMenuButtonStyle())
         .accessibilityLabel(title)
+    }
+}
+
+private struct ReaderMenuButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -491,32 +469,57 @@ struct ReaderHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let section = chapter.section, let book = section.book {
-                NavigationLink {
-                    ChapterGridView(section: section)
-                } label: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(book.titleRussian)
-                            .font(.caption.weight(.bold))
-                            .tracking(1.1)
-                            .foregroundStyle(SefariaStyle.green)
-                        Text(section.titleRussian)
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text(book.titleHebrew)
-                            .font(.title3.weight(.regular))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                            .environment(\.layoutDirection, .rightToLeft)
-                        Text("Глава \(chapter.number)")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    NavigationLink {
+                        SectionListView(book: book)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "book.closed")
+                                .font(.caption.weight(.semibold))
+                            Text(book.titleRussian)
+                            Spacer(minLength: 12)
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                        }
+                        .padding(.vertical, 7)
+                        .padding(.horizontal, 10)
+                        .background(SefariaStyle.green.opacity(colorScheme == .dark ? 0.18 : 0.08), in: Capsule())
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .background(SefariaStyle.panelBackground(for: colorScheme))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .buttonStyle(ReaderHeaderLinkStyle())
+
+                    NavigationLink {
+                        ChapterGridView(section: section)
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(section.titleRussian)
+                                .font(.title2.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Spacer(minLength: 12)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(SefariaStyle.green)
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 10)
+                        .background(SefariaStyle.green.opacity(colorScheme == .dark ? 0.14 : 0.06), in: RoundedRectangle(cornerRadius: 8))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(ReaderHeaderPressStyle())
+
+                    Text(book.titleHebrew)
+                        .font(.title3.weight(.regular))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .environment(\.layoutDirection, .rightToLeft)
+                    Text("Глава \(chapter.number)")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(SefariaStyle.panelBackground(for: colorScheme))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
 
                 HStack(spacing: 10) {
                     if let previousChapter {
@@ -547,6 +550,26 @@ struct ReaderHeader: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 6)
+    }
+}
+
+private struct ReaderHeaderLinkStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.bold))
+            .tracking(1.1)
+            .foregroundStyle(SefariaStyle.green)
+            .opacity(configuration.isPressed ? 0.72 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+private struct ReaderHeaderPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.99 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
