@@ -461,6 +461,8 @@ struct SheetHalakhahList: View {
 }
 
 struct ReaderHeader: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let chapter: MTChapter
     let previousChapter: MTChapter?
     let nextChapter: MTChapter?
