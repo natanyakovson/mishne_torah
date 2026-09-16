@@ -322,6 +322,7 @@ struct DailyRambamCard: View {
                 } label: {
                     DailyRambamChapterRow(chapter: chapter)
                 }
+                .buttonStyle(DailyRambamLinkStyle())
             }
         }
         .padding(16)
@@ -332,7 +333,6 @@ struct DailyRambamCard: View {
 }
 
 struct DailyRambamChapterRow: View {
-    @Environment(\.colorScheme) private var colorScheme
     let chapter: MTChapter
 
     var body: some View {
@@ -349,8 +349,7 @@ struct DailyRambamChapterRow: View {
                         .font(.caption.weight(.semibold))
                 }
                 .padding(.vertical, 7)
-                .padding(.horizontal, 10)
-                .background(SefariaStyle.green.opacity(colorScheme == .dark ? 0.18 : 0.08), in: Capsule())
+                .contentShape(Rectangle())
                 .foregroundStyle(SefariaStyle.green)
             }
 
@@ -361,6 +360,15 @@ struct DailyRambamChapterRow: View {
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .accessibilityHint("Открыть чтение на сегодня")
+    }
+}
+
+private struct DailyRambamLinkStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.99 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 

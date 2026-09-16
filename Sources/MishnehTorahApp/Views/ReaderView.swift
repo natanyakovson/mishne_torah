@@ -461,7 +461,6 @@ struct SheetHalakhahList: View {
 }
 
 struct ReaderHeader: View {
-    @Environment(\.colorScheme) private var colorScheme
     let chapter: MTChapter
     let previousChapter: MTChapter?
     let nextChapter: MTChapter?
@@ -482,8 +481,6 @@ struct ReaderHeader: View {
                                 .font(.caption2.weight(.semibold))
                         }
                         .padding(.vertical, 7)
-                        .padding(.horizontal, 10)
-                        .background(SefariaStyle.green.opacity(colorScheme == .dark ? 0.18 : 0.08), in: Capsule())
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(ReaderHeaderLinkStyle())
@@ -501,8 +498,6 @@ struct ReaderHeader: View {
                                 .foregroundStyle(SefariaStyle.green)
                         }
                         .padding(.vertical, 8)
-                        .padding(.horizontal, 10)
-                        .background(SefariaStyle.green.opacity(colorScheme == .dark ? 0.14 : 0.06), in: RoundedRectangle(cornerRadius: 8))
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(ReaderHeaderPressStyle())
