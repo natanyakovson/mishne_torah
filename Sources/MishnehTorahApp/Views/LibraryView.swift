@@ -389,27 +389,29 @@ struct SectionListView: View {
     let book: MTBook
 
     var body: some View {
-        List {
-            BookHeader(book: book)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+        ScrollView {
+            VStack(spacing: 0) {
+                BookHeader(book: book)
+                    .padding(.horizontal, 18)
 
-            Section {
                 ForEach(book.sortedSections) { section in
                     SectionAccordionRow(
                         section: section,
                         isExpanded: expandedSectionID == section.persistentModelID
                     ) {
-                        expandedSectionID = expandedSectionID == section.persistentModelID ? nil : section.persistentModelID
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            expandedSectionID = expandedSectionID == section.persistentModelID ? nil : section.persistentModelID
+                        }
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
-                    .listRowBackground(SefariaStyle.panelBackground(for: colorScheme))
-                    .listRowSeparatorTint(SefariaStyle.line.opacity(0.45))
+                    .padding(.horizontal, 18)
+                    .background(SefariaStyle.panelBackground(for: colorScheme))
+
+                    Divider()
+                        .overlay(SefariaStyle.line.opacity(0.45))
+                        .padding(.horizontal, 18)
                 }
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
         .background(SefariaStyle.background(for: colorScheme))
         .navigationTitle(book.titleRussian)
         .homeNavigationButton()
@@ -531,10 +533,11 @@ private struct SectionAccordionRow: View {
 
                     Spacer(minLength: 12)
 
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    Image(systemName: "chevron.down")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SefariaStyle.green)
                         .frame(width: 28, height: 44)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(.vertical, 14)
                 .contentShape(Rectangle())
@@ -545,6 +548,7 @@ private struct SectionAccordionRow: View {
             if isExpanded {
                 ChapterPathView(chapters: section.sortedChapters)
                 .padding(.bottom, 16)
+                .transition(.opacity)
             }
         }
     }
