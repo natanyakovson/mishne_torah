@@ -78,8 +78,8 @@ struct ReaderView: View {
                         .id(halakhah.id)
                 }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 22)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 24)
             .padding(.bottom, 96)
             .frame(maxWidth: 1080)
             .frame(maxWidth: .infinity)
@@ -461,28 +461,25 @@ struct SheetHalakhahList: View {
 }
 
 struct ReaderHeader: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     let chapter: MTChapter
     let previousChapter: MTChapter?
     let nextChapter: MTChapter?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(spacing: 20) {
             if let section = chapter.section, let book = section.book {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(spacing: 12) {
                     NavigationLink {
                         SectionListView(book: book)
                     } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 7) {
                             Image(systemName: "book.closed")
-                                .font(.caption.weight(.semibold))
-                            Text(book.titleRussian)
-                            Spacer(minLength: 12)
-                            Image(systemName: "chevron.right")
                                 .font(.caption2.weight(.semibold))
+                            Text(book.titleRussian.uppercased())
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
                         }
-                        .padding(.vertical, 7)
+                        .frame(minHeight: 44)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(ReaderHeaderLinkStyle())
@@ -490,33 +487,37 @@ struct ReaderHeader: View {
                     NavigationLink {
                         ChapterGridView(section: section)
                     } label: {
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        HStack(alignment: .center, spacing: 8) {
+                            Spacer(minLength: 0)
                             Text(section.titleRussian)
-                                .font(.title2.weight(.semibold))
+                                .font(.title.weight(.semibold))
                                 .foregroundStyle(.primary)
-                            Spacer(minLength: 12)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
                             Image(systemName: "chevron.right")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(SefariaStyle.green)
+                                .frame(width: 20)
                         }
-                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(ReaderHeaderPressStyle())
 
-                    Text(book.titleHebrew)
-                        .font(.title3.weight(.regular))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .environment(\.layoutDirection, .rightToLeft)
-                    Text("Глава \(chapter.number)")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Text(section.titleHebrew)
+                            .foregroundStyle(SefariaStyle.green)
+                            .environment(\.layoutDirection, .rightToLeft)
+                        Text("•")
+                            .foregroundStyle(.tertiary)
+                        Text("Глава \(chapter.number)")
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-                .background(SefariaStyle.panelBackground(for: colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
 
                 HStack(spacing: 10) {
                     if let previousChapter {
@@ -543,10 +544,11 @@ struct ReaderHeader: View {
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(SefariaStyle.green)
+                .frame(maxWidth: .infinity)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 10)
     }
 }
 

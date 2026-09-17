@@ -89,7 +89,7 @@ struct BookListView: View {
     let books: [MTBook]
 
     var body: some View {
-        LazyVStack(spacing: 18) {
+        LazyVStack(spacing: 16) {
             ForEach(books) { book in
                 NavigationLink {
                     SectionListView(book: book)
@@ -104,16 +104,20 @@ struct BookListView: View {
 
 struct HomeHeaderView: View {
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             Text("רבי משה בן מימון")
-                .font(.largeTitle.weight(.semibold))
+                .font(.title.weight(.semibold))
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
                 .environment(\.layoutDirection, .rightToLeft)
 
-            Text("Кодекс Маймонида - Мишне Тора")
-                .font(.title3.weight(.medium))
-                .foregroundStyle(SefariaStyle.green)
+            VStack(spacing: 1) {
+                Text("Кодекс Маймонида")
+                Text("Мишне Тора")
+            }
+            .font(.largeTitle.weight(.semibold))
+            .multilineTextAlignment(.center)
+            .foregroundStyle(.primary)
 
             NavigationLink {
                 ProjectInfoView()
@@ -123,14 +127,15 @@ struct HomeHeaderView: View {
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(SefariaStyle.linkBlue)
             }
             .buttonStyle(.plain)
+            .padding(.top, 6)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 18)
-        .padding(.bottom, 18)
+        .padding(.top, 24)
+        .padding(.bottom, 24)
     }
 }
 
@@ -303,11 +308,12 @@ struct DailyRambamCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Чтение на сегодня")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 7) {
+                Text("Чтение на сегодня".uppercased())
+                    .font(.caption.weight(.bold))
+                    .tracking(1.5)
+                    .foregroundStyle(SefariaStyle.green)
                 Text(dateText)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
@@ -325,10 +331,14 @@ struct DailyRambamCard: View {
                 .buttonStyle(DailyRambamLinkStyle())
             }
         }
-        .padding(16)
+        .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(SefariaStyle.panelBackground(for: colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(SefariaStyle.line.opacity(colorScheme == .dark ? 0.22 : 0.32), lineWidth: 0.75)
+        }
     }
 }
 
@@ -339,23 +349,24 @@ struct DailyRambamChapterRow: View {
         VStack(alignment: .leading, spacing: 4) {
             if let section = chapter.section, let book = section.book {
                 Text(book.titleRussian)
-                    .font(.caption.weight(.semibold))
+                    .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
                 HStack(spacing: 10) {
                     Text(section.titleRussian)
-                        .font(.subheadline.weight(.medium))
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.primary)
                     Spacer(minLength: 12)
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
+                        .foregroundStyle(SefariaStyle.green)
                 }
-                .padding(.vertical, 7)
+                .padding(.vertical, 5)
                 .contentShape(Rectangle())
-                .foregroundStyle(SefariaStyle.green)
             }
 
             Text("Глава \(chapter.number)")
-                .font(.caption)
-                .foregroundStyle(SefariaStyle.green)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
@@ -499,42 +510,42 @@ struct BookRow: View {
     let book: MTBook
 
     var body: some View {
-        HStack(alignment: .center, spacing: 18) {
+        HStack(alignment: .center, spacing: 16) {
             Text("\(book.order)")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
+                .frame(width: 32, height: 32)
                 .background(SefariaStyle.green, in: Circle())
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(book.titleRussian)
-                    .font(.title2.weight(.semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(book.titleHebrew)
-                    .font(.title3)
-                    .foregroundStyle(SefariaStyle.muted)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .environment(\.layoutDirection, .rightToLeft)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text("Открыть")
-                .font(.headline.weight(.semibold))
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(SefariaStyle.green)
-                .padding(.horizontal, 22)
-                .padding(.vertical, 8)
-                .overlay {
-                    Capsule()
-                        .stroke(SefariaStyle.green.opacity(0.55), lineWidth: 1)
-                }
+                .frame(width: 28, height: 44)
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 26)
-        .background(SefariaStyle.panelBackground(for: colorScheme).opacity(0.78))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 20)
+        .padding(.vertical, 20)
+        .background(SefariaStyle.panelBackground(for: colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(SefariaStyle.line.opacity(colorScheme == .dark ? 0.18 : 0.26), lineWidth: 0.75)
+        }
         .frame(maxWidth: .infinity)
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
