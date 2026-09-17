@@ -466,50 +466,33 @@ struct ReaderHeader: View {
     let nextChapter: MTChapter?
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 22) {
             if let section = chapter.section, let book = section.book {
-                VStack(spacing: 12) {
-                    NavigationLink {
-                        SectionListView(book: book)
-                    } label: {
-                        HStack(spacing: 7) {
-                            Image(systemName: "book.closed")
-                                .font(.caption2.weight(.semibold))
-                            Text(book.titleRussian.uppercased())
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 9, weight: .semibold))
-                        }
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+                VStack(spacing: 14) {
+                    HStack(spacing: 7) {
+                        Image(systemName: "book.closed")
+                            .font(.caption2.weight(.semibold))
+                        Text(book.titleRussian.uppercased())
                     }
-                    .buttonStyle(ReaderHeaderLinkStyle())
+                    .font(.caption.weight(.bold))
+                    .tracking(1.4)
+                    .foregroundStyle(SefariaStyle.green)
 
-                    NavigationLink {
-                        ChapterGridView(section: section)
-                    } label: {
-                        HStack(alignment: .center, spacing: 8) {
-                            Spacer(minLength: 0)
-                            Text(section.titleRussian)
-                                .font(.title.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
+                    Text(section.titleRussian)
+                        .font(.title.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 620)
+
+                    HStack(spacing: 7) {
+                        if !section.titleHebrew.isEmpty {
+                            Text(section.titleHebrew)
                                 .foregroundStyle(SefariaStyle.green)
-                                .frame(width: 20)
+                                .environment(\.layoutDirection, .rightToLeft)
+                            Text("•")
+                                .foregroundStyle(.tertiary)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(ReaderHeaderPressStyle())
-
-                    HStack(spacing: 8) {
-                        Text(section.titleHebrew)
-                            .foregroundStyle(SefariaStyle.green)
-                            .environment(\.layoutDirection, .rightToLeft)
-                        Text("•")
-                            .foregroundStyle(.tertiary)
                         Text("Глава \(chapter.number)")
                             .foregroundStyle(.secondary)
                     }
@@ -517,7 +500,7 @@ struct ReaderHeader: View {
                     .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, 16)
 
                 HStack(spacing: 10) {
                     if let previousChapter {
@@ -549,26 +532,6 @@ struct ReaderHeader: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.bottom, 10)
-    }
-}
-
-private struct ReaderHeaderLinkStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.caption.weight(.bold))
-            .tracking(1.1)
-            .foregroundStyle(SefariaStyle.green)
-            .opacity(configuration.isPressed ? 0.72 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
-private struct ReaderHeaderPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.99 : 1)
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -639,10 +602,24 @@ struct HalakhahCard: View {
                         .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
                 }
             } else if readerLanguage == .both {
-                Text("Иврит")
+                HStack(spacing: 10) {
+                    Rectangle()
+                        .fill(SefariaStyle.line.opacity(0.42))
+                        .frame(height: 0.75)
+                    Image(systemName: "sparkle")
+                        .font(.caption2)
+                        .foregroundStyle(SefariaStyle.green)
+                    Rectangle()
+                        .fill(SefariaStyle.line.opacity(0.42))
+                        .frame(height: 0.75)
+                }
+                .padding(.vertical, 6)
+
+                Text("עברית")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
+                    .environment(\.layoutDirection, .rightToLeft)
 
                 SelectableHalakhahText(
                     text: halakhah.hebrewDisplayText,
@@ -690,8 +667,13 @@ struct HalakhahCard: View {
                 }
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 0)
+        .padding(20)
+        .background(SefariaStyle.panelBackground(for: colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(SefariaStyle.line.opacity(colorScheme == .dark ? 0.18 : 0.28), lineWidth: 0.75)
+        }
         .contextMenu {
             Button(isBookmarked ? "Убрать закладку" : "Добавить закладку") {
                 toggleBookmark()

@@ -353,7 +353,7 @@ struct DailyRambamChapterRow: View {
                     .foregroundStyle(.secondary)
                 HStack(spacing: 10) {
                     Text(section.titleRussian)
-                        .font(.title3.weight(.semibold))
+                        .font(.headline.weight(.semibold))
                         .foregroundStyle(.primary)
                     Spacer(minLength: 12)
                     Image(systemName: "chevron.right")
@@ -395,12 +395,7 @@ struct SectionListView: View {
 
             Section {
                 ForEach(book.sortedSections) { section in
-                    NavigationLink {
-                        ChapterGridView(section: section)
-                    } label: {
-                        SectionRow(section: section)
-                    }
-                    .disabled(section.sortedChapters.isEmpty)
+                    SectionAccordionRow(section: section)
                     .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
                     .listRowBackground(SefariaStyle.panelBackground(for: colorScheme))
                     .listRowSeparatorTint(SefariaStyle.line.opacity(0.45))
@@ -505,6 +500,81 @@ struct BookHeader: View {
     }
 }
 
+private struct SectionAccordionRow: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isExpanded = false
+    let section: MTSection
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 88, maximum: 120), spacing: 10)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(section.titleRussian)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text("\(section.sortedChapters.count) глав")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(SefariaStyle.green)
+                        .frame(width: 28, height: 44)
+                }
+                .padding(.vertical, 14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(section.sortedChapters.isEmpty)
+
+            if isExpanded {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
+                    ForEach(section.sortedChapters) { chapter in
+                        NavigationLink {
+                            ReaderView(chapter: chapter)
+                        } label: {
+                            VStack(spacing: 4) {
+                                Text("Глава \(chapter.number)")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                Text("פרק \(chapter.number)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .environment(\.layoutDirection, .rightToLeft)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 62)
+                            .background(SefariaStyle.background(for: colorScheme))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(SefariaStyle.line.opacity(0.32), lineWidth: 0.75)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.bottom, 16)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+}
+
 struct BookRow: View {
     @Environment(\.colorScheme) private var colorScheme
     let book: MTBook
@@ -526,6 +596,7 @@ struct BookRow: View {
                 Text(book.titleHebrew)
                     .font(.body)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: true, vertical: false)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .environment(\.layoutDirection, .rightToLeft)
             }
