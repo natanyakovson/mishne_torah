@@ -89,16 +89,78 @@ struct BookListView: View {
     let books: [MTBook]
 
     var body: some View {
-        LazyVStack(spacing: 16) {
-            ForEach(books) { book in
-                NavigationLink {
-                    SectionListView(book: book)
-                } label: {
-                    BookRow(book: book)
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 14) {
+                ForEach(books) { book in
+                    NavigationLink {
+                        SectionListView(book: book)
+                    } label: {
+                        HomeBookCoverView(book: book)
+                            .containerRelativeFrame(.horizontal, count: 5, span: 3, spacing: 14)
+                    }
+                    .buttonStyle(BookCoverButtonStyle())
                 }
-                .buttonStyle(.plain)
             }
+            .scrollTargetLayout()
         }
+        .scrollTargetBehavior(.viewAligned)
+    }
+}
+
+struct HomeBookCoverView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    let book: MTBook
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text("РАМБАМ")
+                .font(.caption.weight(.medium))
+
+            Text("МИШНЕ ТОРА")
+                .font(.headline.weight(.semibold))
+                .padding(.top, 8)
+
+            Rectangle()
+                .fill(SefariaStyle.green.opacity(0.75))
+                .frame(width: 28, height: 1)
+                .padding(.vertical, 22)
+
+            Text(book.titleRussian.uppercased())
+                .font(.title3.weight(.semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
+                .frame(maxWidth: .infinity)
+
+            Spacer(minLength: 18)
+
+            Text(String(format: "%02d", book.order))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(SefariaStyle.green)
+        }
+        .multilineTextAlignment(.center)
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 24)
+        .frame(maxWidth: .infinity)
+        .frame(height: 280)
+        .background(SefariaStyle.panelBackground(for: colorScheme))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(SefariaStyle.green.opacity(0.5), lineWidth: 1)
+                .padding(5)
+        }
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct BookCoverButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -353,13 +415,13 @@ struct DailyRambamChapterRow: View {
                     .foregroundStyle(.secondary)
                 HStack(spacing: 6) {
                     Text(section.titleRussian)
-                        .font(.system(size: 21, weight: .semibold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(SefariaStyle.green)
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(SefariaStyle.green)
-                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 5)
                 .contentShape(Rectangle())
             }
