@@ -96,7 +96,6 @@ struct BookListView: View {
                         SectionListView(book: book)
                     } label: {
                         HomeBookCoverView(book: book)
-                            .containerRelativeFrame(.horizontal, count: 5, span: 3, spacing: 14)
                     }
                     .buttonStyle(BookCoverButtonStyle())
                 }
@@ -108,50 +107,68 @@ struct BookListView: View {
 }
 
 struct HomeBookCoverView: View {
-    @Environment(\.colorScheme) private var colorScheme
     let book: MTBook
+    var isMini = false
+
+    private var coverColor: Color {
+        let colors: [Color] = [
+            Color(red: 0.34, green: 0.12, blue: 0.14),
+            Color(red: 0.16, green: 0.27, blue: 0.22),
+            Color(red: 0.15, green: 0.20, blue: 0.29),
+            Color(red: 0.28, green: 0.20, blue: 0.16),
+            Color(red: 0.32, green: 0.20, blue: 0.15),
+            Color(red: 0.20, green: 0.21, blue: 0.20),
+            Color(red: 0.27, green: 0.28, blue: 0.17)
+        ]
+        return colors[(max(book.order, 1) - 1) % colors.count]
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Text("РАМБАМ")
-                .font(.caption.weight(.medium))
+                .font(isMini ? .system(size: 7, weight: .medium) : .caption2.weight(.medium))
 
             Text("МИШНЕ ТОРА")
-                .font(.headline.weight(.semibold))
-                .padding(.top, 8)
+                .font(isMini ? .system(size: 9, weight: .semibold) : .subheadline.weight(.semibold))
+                .padding(.top, isMini ? 3 : 6)
 
             Rectangle()
                 .fill(SefariaStyle.green.opacity(0.75))
-                .frame(width: 28, height: 1)
-                .padding(.vertical, 22)
+                .frame(width: isMini ? 14 : 24, height: 1)
+                .padding(.vertical, isMini ? 8 : 14)
 
             Text(book.titleRussian.uppercased())
-                .font(.title3.weight(.semibold))
+                .font(isMini ? .system(size: 9, weight: .semibold) : .system(size: 15, weight: .semibold))
                 .lineLimit(2)
                 .minimumScaleFactor(0.82)
                 .frame(maxWidth: .infinity)
 
-            Spacer(minLength: 18)
+            Spacer(minLength: isMini ? 5 : 10)
 
             Text(String(format: "%02d", book.order))
-                .font(.subheadline.weight(.semibold))
+                .font(isMini ? .system(size: 8, weight: .semibold) : .caption.weight(.semibold))
                 .foregroundStyle(SefariaStyle.green)
         }
         .multilineTextAlignment(.center)
-        .foregroundStyle(.primary)
-        .padding(.horizontal, 18)
-        .padding(.vertical, 24)
-        .frame(maxWidth: .infinity)
-        .frame(height: 280)
-        .background(SefariaStyle.panelBackground(for: colorScheme))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .foregroundStyle(Color(red: 0.95, green: 0.91, blue: 0.80))
+        .padding(.horizontal, isMini ? 7 : 12)
+        .padding(.vertical, isMini ? 10 : 18)
+        .frame(width: isMini ? 68 : 134, height: isMini ? 98 : 190)
+        .background(coverColor)
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .stroke(SefariaStyle.green.opacity(0.5), lineWidth: 1)
-                .padding(5)
+                .padding(isMini ? 3 : 5)
         }
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
-        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(.black.opacity(0.13))
+                .frame(width: isMini ? 3 : 5)
+                .padding(.vertical, 2)
+        }
+        .shadow(color: .black.opacity(0.14), radius: isMini ? 3 : 5, x: 1, y: 3)
+        .contentShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
     }
 }
 
@@ -370,19 +387,11 @@ struct DailyRambamCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 7) {
-                Text("Чтение на сегодня".uppercased())
-                    .font(.caption.weight(.bold))
-                    .tracking(1.5)
-                    .foregroundStyle(SefariaStyle.green)
-                Text(dateText)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Text(reading.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(SefariaStyle.green)
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Чтение на сегодня".uppercased())
+                .font(.caption.weight(.bold))
+                .tracking(1.5)
+                .foregroundStyle(SefariaStyle.green)
 
             ForEach(reading.chapters) { chapter in
                 NavigationLink {
@@ -392,8 +401,17 @@ struct DailyRambamCard: View {
                 }
                 .buttonStyle(DailyRambamLinkStyle())
             }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(dateText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(reading.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(SefariaStyle.green)
+            }
         }
-        .padding(22)
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(SefariaStyle.panelBackground(for: colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -408,31 +426,34 @@ struct DailyRambamChapterRow: View {
     let chapter: MTChapter
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let section = chapter.section, let book = section.book {
-                Text(book.titleRussian)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 6) {
-                    Text(section.titleRussian)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(SefariaStyle.green)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(SefariaStyle.green)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 5)
-                .contentShape(Rectangle())
-            }
+        if let section = chapter.section, let book = section.book {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(book.titleRussian)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.secondary)
 
-            Text("Глава \(chapter.number)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                    HStack(spacing: 5) {
+                        Text(section.titleRussian)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(SefariaStyle.green)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(SefariaStyle.green)
+                    }
+
+                    Text("Глава \(chapter.number)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                HomeBookCoverView(book: book, isMini: true)
+            }
+            .contentShape(Rectangle())
+            .accessibilityHint("Открыть чтение на сегодня")
         }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .accessibilityHint("Открыть чтение на сегодня")
     }
 }
 
