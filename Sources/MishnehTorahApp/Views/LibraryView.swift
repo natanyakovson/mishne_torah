@@ -63,7 +63,9 @@ struct LibraryView: View {
                     .accessibilityLabel("Меню")
                     .popover(isPresented: $isShowingMenu, arrowEdge: .top) {
                         AppMenuView(settings: activeSettings)
-                            .presentationCompactAdaptation(.popover)
+                            .presentationCompactAdaptation(.sheet)
+                            .presentationDetents([.fraction(0.55)])
+                            .presentationDragIndicator(.visible)
                             .frame(minWidth: 320, idealWidth: 360, maxWidth: 420)
                     }
                 }
@@ -280,7 +282,7 @@ struct AppMenuView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Меню")
                         .font(.title2.weight(.semibold))
@@ -298,9 +300,10 @@ struct AppMenuView: View {
                             Text(cycle.title).tag(cycle)
                         }
                     }
-                    .pickerStyle(.inline)
+                    .pickerStyle(.segmented)
                 }
-                .padding(12)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
                 .background(SefariaStyle.panelBackground(for: colorScheme))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
@@ -308,7 +311,9 @@ struct AppMenuView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            .padding(18)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .frame(maxHeight: .infinity, alignment: .top)
             .background(SefariaStyle.background(for: colorScheme))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -427,29 +432,23 @@ struct DailyRambamChapterRow: View {
 
     var body: some View {
         if let section = chapter.section, let book = section.book {
-            HStack(alignment: .center, spacing: 14) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(book.titleRussian)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(book.titleRussian)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
 
-                    HStack(spacing: 5) {
-                        Text(section.titleRussian)
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(SefariaStyle.green)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(SefariaStyle.green)
-                    }
-
-                    Text("Глава \(chapter.number)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    Text(section.titleRussian)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(SefariaStyle.green)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(SefariaStyle.green)
                 }
 
-                Spacer(minLength: 8)
-
-                HomeBookCoverView(book: book, isMini: true)
+                Text("Глава \(chapter.number)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
             .contentShape(Rectangle())
             .accessibilityHint("Открыть чтение на сегодня")

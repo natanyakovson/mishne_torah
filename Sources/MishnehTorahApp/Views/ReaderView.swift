@@ -13,10 +13,10 @@ struct ReaderView: View {
     @State private var didRecordReading = false
     @State private var activeSheet: ReaderSheet?
     @State private var isReaderMenuExpanded = false
-    let chapter: MTChapter
+    @State private var chapter: MTChapter
 
     init(chapter: MTChapter) {
-        self.chapter = chapter
+        _chapter = State(initialValue: chapter)
     }
 
     private var textSize: Double {
@@ -114,7 +114,10 @@ struct ReaderView: View {
                     chapter: chapter,
                     bookmarks: bookmarks,
                     highlights: highlights
-                )
+                ) { selectedChapter in
+                    chapter = selectedChapter
+                    activeSheet = nil
+                }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             case .search:
@@ -123,6 +126,7 @@ struct ReaderView: View {
             case .settings:
                 SettingsView()
                     .presentationDetents([.medium, .large])
+                    .presentationBackground(SefariaStyle.background(for: colorScheme))
             }
         }
         .onAppear {
@@ -312,6 +316,7 @@ struct ReaderContentsSheet: View {
     let chapter: MTChapter
     let bookmarks: [MTBookmark]
     let highlights: [MTTextHighlight]
+    let selectChapter: (MTChapter) -> Void
     @State private var tab: ReaderContentsTab = .chapters
 
     private var section: MTSection? {
@@ -363,15 +368,11 @@ struct ReaderContentsSheet: View {
 
                                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], spacing: 8) {
                                         ForEach(section.sortedChapters) { item in
-                                            NavigationLink {
-                                                ReaderView(chapter: item)
+                                            Button {
+                                                selectChapter(item)
                                             } label: {
-                                                VStack(spacing: 2) {
-                                                    Text("\(item.number)")
-                                                        .font(.headline.weight(item.id == chapter.id ? .bold : .regular))
-                                                    Text("פרק")
-                                                        .font(.caption2)
-                                                }
+                                                Text("Глава \(item.number)")
+                                                    .font(.subheadline.weight(item.id == chapter.id ? .bold : .regular))
                                                     .foregroundStyle(item.id == chapter.id ? .white : SefariaStyle.green)
                                                     .frame(maxWidth: .infinity)
                                                     .frame(height: 50)
