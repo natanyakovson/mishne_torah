@@ -351,14 +351,14 @@ struct DailyRambamChapterRow: View {
                 Text(book.titleRussian)
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(.secondary)
-                HStack(spacing: 10) {
+                HStack(spacing: 6) {
                     Text(section.titleRussian)
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 12)
+                        .font(.system(size: 21, weight: .semibold))
+                        .foregroundStyle(SefariaStyle.green)
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SefariaStyle.green)
+                    Spacer(minLength: 0)
                 }
                 .padding(.vertical, 5)
                 .contentShape(Rectangle())
@@ -385,6 +385,7 @@ private struct DailyRambamLinkStyle: ButtonStyle {
 
 struct SectionListView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @State private var expandedSectionID: PersistentIdentifier?
     let book: MTBook
 
     var body: some View {
@@ -395,7 +396,14 @@ struct SectionListView: View {
 
             Section {
                 ForEach(book.sortedSections) { section in
-                    SectionAccordionRow(section: section)
+                    SectionAccordionRow(
+                        section: section,
+                        isExpanded: expandedSectionID == section.persistentModelID
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            expandedSectionID = expandedSectionID == section.persistentModelID ? nil : section.persistentModelID
+                        }
+                    }
                     .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
                     .listRowBackground(SefariaStyle.panelBackground(for: colorScheme))
                     .listRowSeparatorTint(SefariaStyle.line.opacity(0.45))
@@ -485,7 +493,7 @@ struct BookHeader: View {
     let book: MTBook
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 10) {
             Text(book.titleRussian)
                 .font(.largeTitle.weight(.bold))
             Text(book.titleHebrew)
@@ -502,19 +510,14 @@ struct BookHeader: View {
 
 private struct SectionAccordionRow: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State private var isExpanded = false
     let section: MTSection
-
-    private let columns = [
-        GridItem(.adaptive(minimum: 88, maximum: 120), spacing: 10)
-    ]
+    let isExpanded: Bool
+    let toggleExpansion: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
-                }
+                toggleExpansion()
             } label: {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 5) {
@@ -542,36 +545,69 @@ private struct SectionAccordionRow: View {
             .disabled(section.sortedChapters.isEmpty)
 
             if isExpanded {
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
-                    ForEach(section.sortedChapters) { chapter in
-                        NavigationLink {
-                            ReaderView(chapter: chapter)
-                        } label: {
-                            VStack(spacing: 4) {
-                                Text("Глава \(chapter.number)")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                Text("פרק \(chapter.number)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .environment(\.layoutDirection, .rightToLeft)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 62)
-                            .background(SefariaStyle.background(for: colorScheme))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(SefariaStyle.line.opacity(0.32), lineWidth: 0.75)
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                ChapterPathView(chapters: section.sortedChapters)
                 .padding(.bottom, 16)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(.opacity)
             }
         }
+    }
+}
+
+private struct ChapterPathView: View {
+    let chapters: [MTChapter]
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            rows(columnCount: 4)
+            rows(columnCount: 3)
+            rows(columnCount: 2)
+        }
+        .environment(\.layoutDirection, .leftToRight)
+    }
+
+    private func rows(columnCount: Int) -> some View {
+        let starts = Array(stride(from: 0, to: chapters.count, by: columnCount))
+
+        return VStack(alignment: .leading, spacing: 10) {
+            ForEach(starts, id: \.self) { start in
+                ChapterPathRow(
+                    chapters: Array(chapters[start..<min(start + columnCount, chapters.count)])
+                )
+            }
+        }
+    }
+}
+
+private struct ChapterPathRow: View {
+    let chapters: [MTChapter]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(chapters.enumerated()), id: \.offset) { index, chapter in
+                NavigationLink {
+                    ReaderView(chapter: chapter)
+                } label: {
+                    Text("Глава \(chapter.number)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 74, height: 44)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(SefariaStyle.green.opacity(0.7), lineWidth: 1)
+                        }
+                        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(DailyRambamLinkStyle())
+
+                if index < chapters.count - 1 {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(SefariaStyle.green.opacity(0.65))
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

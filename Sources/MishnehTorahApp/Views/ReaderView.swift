@@ -552,33 +552,25 @@ struct HalakhahCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if readerLanguage != .hebrew {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("\(halakhah.number).")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(SefariaStyle.green)
-                        .fixedSize()
-
-                    SelectableHalakhahText(
-                        text: halakhah.russianDisplayText,
-                        textSize: textSize,
-                        lineSpacing: 9,
-                        readerFont: readerFont,
-                        customFontName: customFontName,
-                        layoutDirection: .leftToRight,
-                        highlights: russianHighlights
-                    ) { range, selectedText, color in
-                        addHighlight(range, selectedText, .russian, color)
-                    } deleteHighlight: { range in
-                        deleteHighlight(range, .russian)
-                    }
-
-                    bookmarkButton
-                        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
+                SelectableHalakhahText(
+                    text: halakhah.russianDisplayText,
+                    prefix: "\(halakhah.number). ",
+                    textSize: textSize,
+                    lineSpacing: 9,
+                    readerFont: readerFont,
+                    customFontName: customFontName,
+                    layoutDirection: .leftToRight,
+                    highlights: russianHighlights,
+                    reservesTopTrailingSpace: true
+                ) { range, selectedText, color in
+                    addHighlight(range, selectedText, .russian, color)
+                } deleteHighlight: { range in
+                    deleteHighlight(range, .russian)
                 }
             }
 
             if readerLanguage == .hebrew {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text("\(halakhah.number).")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(SefariaStyle.green)
@@ -597,8 +589,10 @@ struct HalakhahCard: View {
                     } deleteHighlight: { range in
                         deleteHighlight(range, .hebrew)
                     }
+                    .layoutPriority(1)
 
                     bookmarkButton
+                        .fixedSize()
                         .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] }
                 }
             } else if readerLanguage == .both {
@@ -674,6 +668,12 @@ struct HalakhahCard: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(SefariaStyle.line.opacity(colorScheme == .dark ? 0.18 : 0.28), lineWidth: 0.75)
         }
+        .overlay(alignment: .topTrailing) {
+            if readerLanguage != .hebrew {
+                bookmarkButton
+                    .padding(20)
+            }
+        }
         .contextMenu {
             Button(isBookmarked ? "Убрать закладку" : "Добавить закладку") {
                 toggleBookmark()
@@ -698,12 +698,14 @@ struct HalakhahCard: View {
 
 struct SelectableHalakhahText: View {
     let text: String
+    var prefix = ""
     let textSize: Double
     let lineSpacing: CGFloat
     let readerFont: ReaderFont
     let customFontName: String?
     let layoutDirection: LayoutDirection
     let highlights: [MTTextHighlight]
+    var reservesTopTrailingSpace = false
     let addHighlight: (NSRange, String, HighlightColor) -> Void
     let deleteHighlight: (NSRange) -> Void
 
@@ -711,12 +713,14 @@ struct SelectableHalakhahText: View {
         #if canImport(UIKit)
         SelectableTextView(
             text: text,
+            prefix: prefix,
             textSize: textSize,
             lineSpacing: lineSpacing,
             readerFont: readerFont,
             customFontName: customFontName,
             layoutDirection: layoutDirection,
             highlights: highlights,
+            reservesTopTrailingSpace: reservesTopTrailingSpace,
             addHighlight: addHighlight,
             deleteHighlight: deleteHighlight
         )
@@ -752,12 +756,14 @@ struct SelectableHalakhahText: View {
 #if canImport(UIKit)
 struct SelectableTextView: UIViewRepresentable {
     let text: String
+    let prefix: String
     let textSize: Double
     let lineSpacing: CGFloat
     let readerFont: ReaderFont
     let customFontName: String?
     let layoutDirection: LayoutDirection
     let highlights: [MTTextHighlight]
+    let reservesTopTrailingSpace: Bool
     let addHighlight: (NSRange, String, HighlightColor) -> Void
     let deleteHighlight: (NSRange) -> Void
 
@@ -780,6 +786,9 @@ struct SelectableTextView: UIViewRepresentable {
         textView.attributedText = makeAttributedString()
         textView.textAlignment = layoutDirection == .rightToLeft ? .right : .natural
         textView.semanticContentAttribute = layoutDirection == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
+        textView.textContainer.exclusionPaths = reservesTopTrailingSpace
+            ? [UIBezierPath(rect: CGRect(x: max(textView.bounds.width - 34, 0), y: 0, width: 34, height: 34))]
+            : []
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
@@ -793,8 +802,9 @@ struct SelectableTextView: UIViewRepresentable {
     }
 
     private func makeAttributedString() -> NSAttributedString {
-        let attributed = NSMutableAttributedString(string: text)
-        let fullRange = NSRange(location: 0, length: (text as NSString).length)
+        let attributed = NSMutableAttributedString(string: prefix + text)
+        let prefixLength = (prefix as NSString).length
+        let fullRange = NSRange(location: 0, length: ((prefix + text) as NSString).length)
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = lineSpacing
         paragraph.alignment = layoutDirection == .rightToLeft ? .right : .natural
@@ -809,8 +819,12 @@ struct SelectableTextView: UIViewRepresentable {
             range: fullRange
         )
 
+        if prefixLength > 0 {
+            attributed.addAttribute(.foregroundColor, value: UIColor(SefariaStyle.green), range: NSRange(location: 0, length: prefixLength))
+        }
+
         for highlight in highlights {
-            let range = NSRange(location: highlight.startLocation, length: highlight.length)
+            let range = NSRange(location: highlight.startLocation + prefixLength, length: highlight.length)
             guard NSMaxRange(range) <= fullRange.length,
                   let color = HighlightColor(rawValue: highlight.colorRawValue) else {
                 continue
@@ -829,13 +843,15 @@ struct SelectableTextView: UIViewRepresentable {
         }
 
         func textView(_ textView: UITextView, editMenuForTextIn range: NSRange, suggestedActions: [UIMenuElement]) -> UIMenu? {
-            guard range.length > 0,
+            let prefixLength = (parent.prefix as NSString).length
+            let contentRange = NSRange(location: max(range.location - prefixLength, 0), length: max(range.length - max(prefixLength - range.location, 0), 0))
+            guard contentRange.length > 0,
                   let textRange = Range(range, in: textView.text),
                   !String(textView.text[textRange]).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return UIMenu(children: suggestedActions)
             }
 
-            let intersectsExistingHighlight = parent.highlights.contains { $0.range.intersects(range) }
+            let intersectsExistingHighlight = parent.highlights.contains { $0.range.intersects(contentRange) }
 
             let colorActions = HighlightColor.allCases.map { color in
                 UIAction(title: color.title) { [weak textView] _ in
@@ -843,7 +859,8 @@ struct SelectableTextView: UIViewRepresentable {
                           let selectedRange = Range(range, in: textView.text) else {
                         return
                     }
-                    self.parent.addHighlight(range, String(textView.text[selectedRange]), color)
+                    let selectedText = String(textView.text[selectedRange]).dropFirst(max(prefixLength - range.location, 0))
+                    self.parent.addHighlight(contentRange, String(selectedText), color)
                 }
             }
 
@@ -857,7 +874,7 @@ struct SelectableTextView: UIViewRepresentable {
             if intersectsExistingHighlight {
                 actions.append(
                     UIAction(title: "Убрать выделение", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
-                        self.parent.deleteHighlight(range)
+                        self.parent.deleteHighlight(contentRange)
                     }
                 )
             }
