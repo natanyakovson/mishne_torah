@@ -400,9 +400,7 @@ struct SectionListView: View {
                         section: section,
                         isExpanded: expandedSectionID == section.persistentModelID
                     ) {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            expandedSectionID = expandedSectionID == section.persistentModelID ? nil : section.persistentModelID
-                        }
+                        expandedSectionID = expandedSectionID == section.persistentModelID ? nil : section.persistentModelID
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 18, bottom: 0, trailing: 18))
                     .listRowBackground(SefariaStyle.panelBackground(for: colorScheme))
@@ -547,13 +545,13 @@ private struct SectionAccordionRow: View {
             if isExpanded {
                 ChapterPathView(chapters: section.sortedChapters)
                 .padding(.bottom, 16)
-                .transition(.opacity)
             }
         }
     }
 }
 
 private struct ChapterPathView: View {
+    @State private var selectedChapter: MTChapter?
     let chapters: [MTChapter]
 
     var body: some View {
@@ -563,6 +561,14 @@ private struct ChapterPathView: View {
             rows(columnCount: 2)
         }
         .environment(\.layoutDirection, .leftToRight)
+        .navigationDestination(isPresented: Binding(
+            get: { selectedChapter != nil },
+            set: { if !$0 { selectedChapter = nil } }
+        )) {
+            if let selectedChapter {
+                ReaderView(chapter: selectedChapter)
+            }
+        }
     }
 
     private func rows(columnCount: Int) -> some View {
@@ -571,7 +577,8 @@ private struct ChapterPathView: View {
         return VStack(alignment: .leading, spacing: 10) {
             ForEach(starts, id: \.self) { start in
                 ChapterPathRow(
-                    chapters: Array(chapters[start..<min(start + columnCount, chapters.count)])
+                    chapters: Array(chapters[start..<min(start + columnCount, chapters.count)]),
+                    selectedChapter: $selectedChapter
                 )
             }
         }
@@ -580,12 +587,13 @@ private struct ChapterPathView: View {
 
 private struct ChapterPathRow: View {
     let chapters: [MTChapter]
+    @Binding var selectedChapter: MTChapter?
 
     var body: some View {
         HStack(spacing: 6) {
             ForEach(Array(chapters.enumerated()), id: \.offset) { index, chapter in
-                NavigationLink {
-                    ReaderView(chapter: chapter)
+                Button {
+                    selectedChapter = chapter
                 } label: {
                     Text("Глава \(chapter.number)")
                         .font(.subheadline.weight(.semibold))

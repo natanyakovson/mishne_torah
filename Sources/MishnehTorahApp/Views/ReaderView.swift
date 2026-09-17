@@ -786,13 +786,13 @@ struct SelectableTextView: UIViewRepresentable {
         textView.attributedText = makeAttributedString()
         textView.textAlignment = layoutDirection == .rightToLeft ? .right : .natural
         textView.semanticContentAttribute = layoutDirection == .rightToLeft ? .forceRightToLeft : .forceLeftToRight
-        textView.textContainer.exclusionPaths = reservesTopTrailingSpace
-            ? [UIBezierPath(rect: CGRect(x: max(textView.bounds.width - 34, 0), y: 0, width: 34, height: 34))]
-            : []
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         let width = proposal.width ?? UIScreen.main.bounds.width - 72
+        uiView.textContainer.exclusionPaths = reservesTopTrailingSpace
+            ? [UIBezierPath(rect: CGRect(x: width - 34, y: 0, width: 34, height: 34))]
+            : []
         let size = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
         return CGSize(width: width, height: size.height)
     }
