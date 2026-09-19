@@ -32,7 +32,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 22) {
+                LazyVStack(alignment: .leading, spacing: 16) {
                     HomeHeaderView()
 
                     if let dailyReading {
@@ -46,7 +46,7 @@ struct LibraryView: View {
                     BookListView(books: books)
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 18)
+                .padding(.vertical, 12)
                 .frame(maxWidth: 940)
                 .frame(maxWidth: .infinity)
             }
@@ -185,18 +185,18 @@ private struct BookCoverButtonStyle: ButtonStyle {
 
 struct HomeHeaderView: View {
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 5) {
             Text("רבי משה בן מימון")
-                .font(.title.weight(.semibold))
+                .font(.title3.weight(.medium))
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity)
                 .environment(\.layoutDirection, .rightToLeft)
 
-            VStack(spacing: 1) {
-                Text("Кодекс Маймонида")
-                Text("Мишне Тора")
+            VStack(spacing: 0) {
+                Text("РАМБАМ")
+                Text("МИШНЕ ТОРА")
             }
-            .font(.largeTitle.weight(.semibold))
+            .font(.title2.weight(.semibold))
             .multilineTextAlignment(.center)
             .foregroundStyle(.primary)
 
@@ -209,14 +209,14 @@ struct HomeHeaderView: View {
                         .font(.caption.weight(.semibold))
                 }
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(SefariaStyle.linkBlue)
+                .foregroundStyle(SefariaStyle.green)
             }
             .buttonStyle(.plain)
-            .padding(.top, 6)
+            .padding(.top, 3)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 24)
-        .padding(.bottom, 24)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
     }
 }
 
@@ -392,11 +392,16 @@ struct DailyRambamCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Чтение на сегодня".uppercased())
-                .font(.caption.weight(.bold))
-                .tracking(1.5)
-                .foregroundStyle(SefariaStyle.green)
+        VStack(alignment: .leading, spacing: 15) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("СЕГОДНЯ")
+                    .font(.caption.weight(.bold))
+                    .tracking(1.2)
+                    .foregroundStyle(SefariaStyle.green)
+                Text(dateText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             ForEach(reading.chapters) { chapter in
                 NavigationLink {
@@ -407,16 +412,28 @@ struct DailyRambamCard: View {
                 .buttonStyle(DailyRambamLinkStyle())
             }
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(dateText)
+            HStack {
+                Text(reading.title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(reading.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(SefariaStyle.green)
+                Spacer()
+                if let firstChapter = reading.chapters.first {
+                    NavigationLink {
+                        ReaderView(chapter: firstChapter)
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text("Продолжить")
+                                .font(.footnote.weight(.semibold))
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                        }
+                        .foregroundStyle(SefariaStyle.green)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
-        .padding(18)
+        .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(SefariaStyle.panelBackground(for: colorScheme))
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -424,6 +441,7 @@ struct DailyRambamCard: View {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .stroke(SefariaStyle.line.opacity(colorScheme == .dark ? 0.22 : 0.32), lineWidth: 0.75)
         }
+        .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
     }
 }
 
@@ -432,22 +450,18 @@ struct DailyRambamChapterRow: View {
 
     var body: some View {
         if let section = chapter.section, let book = section.book {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(book.titleRussian)
-                    .font(.footnote.weight(.medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
 
-                HStack(spacing: 5) {
-                    Text(section.titleRussian)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(SefariaStyle.green)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(SefariaStyle.green)
-                }
+                Text(section.titleRussian)
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("Глава \(chapter.number)")
-                    .font(.footnote)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             .contentShape(Rectangle())
