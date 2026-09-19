@@ -63,10 +63,9 @@ struct LibraryView: View {
                     .accessibilityLabel("Меню")
                     .popover(isPresented: $isShowingMenu, arrowEdge: .top) {
                         AppMenuView(settings: activeSettings)
-                            .presentationCompactAdaptation(.sheet)
-                            .presentationDetents([.fraction(0.55)])
-                            .presentationDragIndicator(.visible)
+                            .presentationCompactAdaptation(.popover)
                             .frame(minWidth: 320, idealWidth: 360, maxWidth: 420)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -281,7 +280,21 @@ struct AppMenuView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Закрыть меню")
+            }
+            .padding(.horizontal, 18)
+
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Меню")
@@ -313,21 +326,8 @@ struct AppMenuView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .background(SefariaStyle.background(for: colorScheme))
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Закрыть меню")
-                }
-            }
         }
+        .background(SefariaStyle.background(for: colorScheme))
     }
 }
 
