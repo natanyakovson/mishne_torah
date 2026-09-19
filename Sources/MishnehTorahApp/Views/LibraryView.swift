@@ -422,7 +422,7 @@ struct DailyRambamCard: View {
                         ReaderView(chapter: firstChapter)
                     } label: {
                         HStack(spacing: 5) {
-                            Text("Продолжить")
+                            Text("Читать")
                                 .font(.footnote.weight(.semibold))
                             Image(systemName: "chevron.right")
                                 .font(.caption2.weight(.semibold))
