@@ -25,7 +25,8 @@ struct SearchView: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(SefariaStyle.green)
                         Text(highlightedPreview(for: halakhah))
-                            .lineLimit(2)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
                             .font(.title3.weight(.regular))
                     }
                     .padding(.vertical, 8)
