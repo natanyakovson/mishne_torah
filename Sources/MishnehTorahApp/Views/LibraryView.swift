@@ -396,14 +396,19 @@ struct DailyRambamCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("СЕГОДНЯ")
-                    .font(.caption.weight(.bold))
-                    .tracking(1.2)
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "calendar")
+                    .font(.title2.weight(.semibold))
                     .foregroundStyle(SefariaStyle.green)
-                Text(dateText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("СЕГОДНЯ")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SefariaStyle.green)
+                    Text(dateText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             ForEach(bookGroups.indices, id: \.self) { bookIndex in
@@ -417,7 +422,7 @@ struct DailyRambamCard: View {
                             NavigationLink {
                                 ReaderView(chapter: chapter)
                             } label: {
-                                DailyRambamChapterRow(chapter: chapter, chapters: chapters, singleChapter: reading.chapters.count == 1)
+                                DailyRambamChapterRow(chapter: chapter, chapters: chapters)
                             }
                             .buttonStyle(DailyRambamLinkStyle())
                         }
@@ -463,33 +468,34 @@ struct DailyRambamCard: View {
 struct DailyRambamChapterRow: View {
     let chapter: MTChapter
     let chapters: [MTChapter]
-    let singleChapter: Bool
+
+    private var chapterNumbers: String {
+        let numbers = chapters.map(\.number).sorted()
+        guard let first = numbers.first, let last = numbers.last else { return "" }
+        if numbers.count == 1 { return "\(first)" }
+        let consecutive = zip(numbers, numbers.dropFirst()).allSatisfy { $1 == $0 + 1 }
+        return consecutive ? "\(first)–\(last)" : numbers.map { String($0) }.joined(separator: ", ")
+    }
 
     private var chapterLabel: String {
-        let numbers = chapters.map(\.number)
-        guard let first = numbers.first, let last = numbers.last else { return "" }
-        if numbers.count == 1 { return "Глава \(first)" }
-        let consecutive = zip(numbers, numbers.dropFirst()).allSatisfy { $1 == $0 + 1 }
-        return "главы " + (consecutive ? "\(first)–\(last)" : numbers.map { String($0) }.joined(separator: ", "))
+        "\(chapters.count == 1 ? "Глава" : "Главы") \(chapterNumbers)"
     }
 
     var body: some View {
         if let section = chapter.section {
-            VStack(alignment: .leading, spacing: 3) {
-                if singleChapter {
-                    Text(section.titleRussian)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text(chapterLabel)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    (Text(section.titleRussian).font(.system(size: 17, weight: .semibold)).foregroundColor(.primary)
-                     + Text(" · \(chapterLabel.lowercased())").font(.system(size: 17)).foregroundColor(.secondary))
-                }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                (Text(section.titleRussian).fontWeight(.semibold).foregroundColor(.primary)
+                 + Text(" · гл. \(chapterNumbers)").foregroundColor(.secondary))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .font(.system(size: 17))
             .fixedSize(horizontal: false, vertical: true)
             .contentShape(Rectangle())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(section.titleRussian), \(chapterLabel)")
             .accessibilityHint("Открыть чтение на сегодня")
         }
     }
