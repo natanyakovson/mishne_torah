@@ -377,17 +377,21 @@ struct DailyRambamCard: View {
         AppDateFormatter.combinedDateString(for: date)
     }
 
-    private var chapterGroups: [[MTChapter]] {
-        reading.chapters.reduce(into: []) { groups, chapter in
-            if let previous = groups.last?.last,
-               let section = chapter.section,
-               previous.section?.id == section.id,
-               chapter.number == previous.number + 1 {
-                groups[groups.count - 1].append(chapter)
+    private var bookGroups: [[[MTChapter]]] {
+        var groups: [[[MTChapter]]] = []
+        for chapter in reading.chapters {
+            guard let section = chapter.section, let book = section.book else { continue }
+            if let bookIndex = groups.firstIndex(where: { $0.first?.first?.section?.book?.id == book.id }) {
+                if let sectionIndex = groups[bookIndex].firstIndex(where: { $0.first?.section?.id == section.id }) {
+                    groups[bookIndex][sectionIndex].append(chapter)
+                } else {
+                    groups[bookIndex].append([chapter])
+                }
             } else {
-                groups.append([chapter])
+                groups.append([[chapter]])
             }
         }
+        return groups
     }
 
     var body: some View {
@@ -402,15 +406,21 @@ struct DailyRambamCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(chapterGroups.indices, id: \.self) { index in
-                    if let chapter = chapterGroups[index].first {
-                        NavigationLink {
-                            ReaderView(chapter: chapter)
-                        } label: {
-                            DailyRambamChapterRow(chapter: chapter, lastChapter: chapterGroups[index].last)
+            ForEach(bookGroups.indices, id: \.self) { bookIndex in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(bookGroups[bookIndex].first?.first?.section?.book?.titleRussian ?? "")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(bookGroups[bookIndex].indices, id: \.self) { sectionIndex in
+                        let chapters = bookGroups[bookIndex][sectionIndex]
+                        if let chapter = chapters.first {
+                            NavigationLink {
+                                ReaderView(chapter: chapter)
+                            } label: {
+                                DailyRambamChapterRow(chapter: chapter, chapters: chapters, singleChapter: reading.chapters.count == 1)
+                            }
+                            .buttonStyle(DailyRambamLinkStyle())
                         }
-                        .buttonStyle(DailyRambamLinkStyle())
                     }
                 }
             }
@@ -452,30 +462,33 @@ struct DailyRambamCard: View {
 
 struct DailyRambamChapterRow: View {
     let chapter: MTChapter
-    let lastChapter: MTChapter?
+    let chapters: [MTChapter]
+    let singleChapter: Bool
 
     private var chapterLabel: String {
-        if let lastChapter, lastChapter.number != chapter.number {
-            return "Главы \(chapter.number)–\(lastChapter.number)"
-        }
-        return "Глава \(chapter.number)"
+        let numbers = chapters.map(\.number)
+        guard let first = numbers.first, let last = numbers.last else { return "" }
+        if numbers.count == 1 { return "Глава \(first)" }
+        let consecutive = zip(numbers, numbers.dropFirst()).allSatisfy { $1 == $0 + 1 }
+        return "главы " + (consecutive ? "\(first)–\(last)" : numbers.map { String($0) }.joined(separator: ", "))
     }
 
     var body: some View {
-        if let section = chapter.section, let book = section.book {
+        if let section = chapter.section {
             VStack(alignment: .leading, spacing: 3) {
-                Text(book.titleRussian)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                (Text(section.titleRussian)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
-                 + Text(" · \(chapterLabel)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary))
-                    .fixedSize(horizontal: false, vertical: true)
+                if singleChapter {
+                    Text(section.titleRussian)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(chapterLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    (Text(section.titleRussian).font(.system(size: 17, weight: .semibold)).foregroundColor(.primary)
+                     + Text(" · \(chapterLabel.lowercased())").font(.system(size: 17)).foregroundColor(.secondary))
+                }
             }
+            .fixedSize(horizontal: false, vertical: true)
             .contentShape(Rectangle())
             .accessibilityHint("Открыть чтение на сегодня")
         }
