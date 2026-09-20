@@ -308,12 +308,12 @@ struct AppMenuView: View {
                     Text("Выбранный цикл")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Picker("Цикл чтения", selection: selectedCycle) {
+                    Picker("Рамбам", selection: selectedCycle) {
                         ForEach(ReadingCycle.selectableCases) { cycle in
                             Text(cycle.title).tag(cycle)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -347,10 +347,18 @@ struct ReadingCyclePickerCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 10) {
-                cycleButton(.oneChapter)
-                cycleButton(.threeChapters)
+            Picker("Рамбам", selection: Binding(
+                get: { ReadingCycle(rawValue: settings.readingCycleRawValue ?? "") ?? .none },
+                set: { cycle in
+                    settings.readingCycleRawValue = cycle.rawValue
+                    try? modelContext.save()
+                }
+            )) {
+                ForEach(ReadingCycle.selectableCases) { cycle in
+                    Text(cycle.title).tag(cycle)
+                }
             }
+            .pickerStyle(.menu)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -358,28 +366,6 @@ struct ReadingCyclePickerCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
-    private func cycleButton(_ cycle: ReadingCycle) -> some View {
-        Button {
-            settings.readingCycleRawValue = cycle.rawValue
-            try? modelContext.save()
-        } label: {
-            VStack(spacing: 4) {
-                Text(cycle.title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text(cycle.shortTitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 70)
-            .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(SefariaStyle.green.opacity(0.45), lineWidth: 1)
-            }
-        }
-        .buttonStyle(.plain)
-    }
 }
 
 struct DailyRambamCard: View {
@@ -389,6 +375,19 @@ struct DailyRambamCard: View {
 
     private var dateText: String {
         AppDateFormatter.combinedDateString(for: date)
+    }
+
+    private var chapterGroups: [[MTChapter]] {
+        reading.chapters.reduce(into: []) { groups, chapter in
+            if let previous = groups.last?.last,
+               let section = chapter.section,
+               previous.section?.id == section.id,
+               chapter.number == previous.number + 1 {
+                groups[groups.count - 1].append(chapter)
+            } else {
+                groups.append([chapter])
+            }
+        }
     }
 
     var body: some View {
@@ -403,14 +402,20 @@ struct DailyRambamCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            ForEach(reading.chapters) { chapter in
-                NavigationLink {
-                    ReaderView(chapter: chapter)
-                } label: {
-                    DailyRambamChapterRow(chapter: chapter)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(chapterGroups.indices, id: \.self) { index in
+                    if let chapter = chapterGroups[index].first {
+                        NavigationLink {
+                            ReaderView(chapter: chapter)
+                        } label: {
+                            DailyRambamChapterRow(chapter: chapter, lastChapter: chapterGroups[index].last)
+                        }
+                        .buttonStyle(DailyRambamLinkStyle())
+                    }
                 }
-                .buttonStyle(DailyRambamLinkStyle())
             }
+
+            Divider()
 
             HStack {
                 Text(reading.title)
@@ -447,22 +452,29 @@ struct DailyRambamCard: View {
 
 struct DailyRambamChapterRow: View {
     let chapter: MTChapter
+    let lastChapter: MTChapter?
+
+    private var chapterLabel: String {
+        if let lastChapter, lastChapter.number != chapter.number {
+            return "Главы \(chapter.number)–\(lastChapter.number)"
+        }
+        return "Глава \(chapter.number)"
+    }
 
     var body: some View {
         if let section = chapter.section, let book = section.book {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(book.titleRussian)
-                    .font(.subheadline.weight(.medium))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text(section.titleRussian)
-                    .font(.system(size: 23, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("Глава \(chapter.number)")
+                (Text(section.titleRussian)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.primary)
+                 + Text(" · \(chapterLabel)")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(.secondary))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .contentShape(Rectangle())
             .accessibilityHint("Открыть чтение на сегодня")

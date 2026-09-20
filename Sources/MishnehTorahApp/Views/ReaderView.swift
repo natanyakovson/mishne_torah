@@ -77,6 +77,13 @@ struct ReaderView: View {
                     }
                         .id(halakhah.id)
                 }
+                if let book = chapter.section?.book {
+                    ChapterNavigation(
+                        book: book,
+                        previousChapter: chapterNavigation.previous,
+                        nextChapter: chapterNavigation.next
+                    )
+                }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 24)
@@ -503,6 +510,20 @@ struct ReaderHeader: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
 
+                ChapterNavigation(book: book, previousChapter: previousChapter, nextChapter: nextChapter)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 10)
+    }
+}
+
+private struct ChapterNavigation: View {
+    let book: MTBook
+    let previousChapter: MTChapter?
+    let nextChapter: MTChapter?
+
+    var body: some View {
                 HStack(spacing: 10) {
                     if let previousChapter {
                         NavigationLink {
@@ -529,10 +550,6 @@ struct ReaderHeader: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(SefariaStyle.green)
                 .frame(maxWidth: .infinity)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 10)
     }
 }
 
