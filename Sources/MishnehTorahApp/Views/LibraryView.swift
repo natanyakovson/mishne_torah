@@ -403,7 +403,7 @@ struct DailyRambamCard: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("СЕГОДНЯ")
-                        .font(.caption.weight(.bold))
+                        .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(SefariaStyle.green)
                     Text(dateText)
                         .font(.caption)
@@ -487,8 +487,8 @@ struct DailyRambamChapterRow: View {
                 Image(systemName: "doc.text")
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
-                (Text(section.titleRussian).fontWeight(.semibold).foregroundColor(.primary)
-                 + Text(" · гл. \(chapterNumbers)").foregroundColor(.secondary))
+                (Text(section.titleRussian).font(.system(size: 17, weight: .semibold)).foregroundColor(.primary)
+                 + Text(" · гл. \(chapterNumbers)").font(.system(size: 16, weight: .regular)).foregroundColor(.secondary))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .font(.system(size: 17))
