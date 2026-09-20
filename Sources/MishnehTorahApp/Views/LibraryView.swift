@@ -7,6 +7,7 @@ struct LibraryView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \MTBook.order) private var books: [MTBook]
     @Query private var settings: [MTReaderSettings]
+    @State private var isShowingMenu = false
     @State private var currentDate = Date()
     @State private var navigationResetID = UUID()
 
@@ -53,13 +54,19 @@ struct LibraryView: View {
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        AppMenuView(settings: activeSettings)
+                    Button {
+                        isShowingMenu.toggle()
                     } label: {
                         Image(systemName: "line.3.horizontal")
                     }
                     .help("Меню")
                     .accessibilityLabel("Меню")
+                    .popover(isPresented: $isShowingMenu, arrowEdge: .top) {
+                        AppMenuView(settings: activeSettings, isPresented: $isShowingMenu)
+                            .frame(width: 300)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .presentationCompactAdaptation(.popover)
+                    }
                 }
             }
             .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
@@ -259,6 +266,7 @@ struct ProjectInfoView: View {
 struct AppMenuView: View {
     @Environment(\.modelContext) private var modelContext
     let settings: MTReaderSettings
+    @Binding var isPresented: Bool
 
     private var selectedCycle: Binding<ReadingCycle> {
         Binding(
@@ -266,26 +274,59 @@ struct AppMenuView: View {
             set: { cycle in
                 settings.readingCycleRawValue = cycle.rawValue
                 try? modelContext.save()
+                isPresented = false
             }
         )
     }
 
     var body: some View {
-        Section("Меню") {
-            Text("Навигация и цикл чтения")
-            Section("Выбранный цикл") {
-                Picker("Цикл чтения", selection: selectedCycle) {
-                    ForEach(ReadingCycle.selectableCases) { cycle in
-                        Text(cycle.title).tag(cycle)
-                    }
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Меню")
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Button {
+                    isPresented = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Закрыть меню")
             }
+            Text("Навигация и цикл чтения")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Divider()
+            Text("Выбранный цикл")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ForEach(ReadingCycle.selectableCases) { cycle in
+                Button {
+                    selectedCycle.wrappedValue = cycle
+                } label: {
+                    HStack {
+                        Text(cycle.title)
+                        Spacer()
+                        Image(systemName: "checkmark")
+                            .opacity(selectedCycle.wrappedValue == cycle ? 1 : 0)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selectedCycle.wrappedValue == cycle ? .isSelected : [])
+            }
+            Divider()
             Text("После выбора цикл появится на главной странице в карточке чтения на сегодня.")
-            // Selecting a native menu action dismisses the menu automatically.
-            Button {} label: {
-                Label("Закрыть меню", systemImage: "xmark.circle.fill")
-            }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
+        .padding(16)
     }
 }
 
