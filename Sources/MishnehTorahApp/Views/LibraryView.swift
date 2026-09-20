@@ -7,7 +7,6 @@ struct LibraryView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \MTBook.order) private var books: [MTBook]
     @Query private var settings: [MTReaderSettings]
-    @State private var isShowingMenu = false
     @State private var currentDate = Date()
     @State private var navigationResetID = UUID()
 
@@ -54,19 +53,13 @@ struct LibraryView: View {
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isShowingMenu = true
+                    Menu {
+                        AppMenuView(settings: activeSettings)
                     } label: {
                         Image(systemName: "line.3.horizontal")
                     }
                     .help("Меню")
                     .accessibilityLabel("Меню")
-                    .popover(isPresented: $isShowingMenu, arrowEdge: .top) {
-                        AppMenuView(settings: activeSettings)
-                            .presentationCompactAdaptation(.popover)
-                            .frame(minWidth: 320, idealWidth: 360, maxWidth: 420)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
                 }
             }
             .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
@@ -264,9 +257,7 @@ struct ProjectInfoView: View {
 }
 
 struct AppMenuView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.colorScheme) private var colorScheme
     let settings: MTReaderSettings
 
     private var selectedCycle: Binding<ReadingCycle> {
@@ -280,54 +271,21 @@ struct AppMenuView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Закрыть меню")
-            }
-            .padding(.horizontal, 18)
-
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Меню")
-                        .font(.title2.weight(.semibold))
-                    Text("Навигация и цикл чтения")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Выбранный цикл")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Picker("Рамбам", selection: selectedCycle) {
-                        ForEach(ReadingCycle.selectableCases) { cycle in
-                            Text(cycle.title).tag(cycle)
-                        }
+        Section("Меню") {
+            Text("Навигация и цикл чтения")
+            Section("Выбранный цикл") {
+                Picker("Цикл чтения", selection: selectedCycle) {
+                    ForEach(ReadingCycle.selectableCases) { cycle in
+                        Text(cycle.title).tag(cycle)
                     }
-                    .pickerStyle(.menu)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(SefariaStyle.panelBackground(for: colorScheme))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                Text("После выбора цикл появится на главной странице в карточке чтения на сегодня.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
+            Text("После выбора цикл появится на главной странице в карточке чтения на сегодня.")
+            // Selecting a native menu action dismisses the menu automatically.
+            Button {} label: {
+                Label("Закрыть меню", systemImage: "xmark.circle.fill")
+            }
         }
-        .background(SefariaStyle.background(for: colorScheme))
     }
 }
 
