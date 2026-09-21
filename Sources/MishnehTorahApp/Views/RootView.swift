@@ -49,6 +49,7 @@ extension View {
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \MTReaderSettings.textSize) private var settings: [MTReaderSettings]
     @EnvironmentObject private var appearance: AppearanceController
     @StateObject private var navigation = AppNavigationState()
@@ -124,6 +125,13 @@ struct RootView: View {
             } catch {
                 preparationError = error.localizedDescription
                 isPreparingLibrary = false
+            }
+        }
+        .onChange(of: scenePhase) {
+            guard scenePhase == .active, didStartPreparingLibrary,
+                  !isPreparingLibrary, preparationError == nil else { return }
+            Task { @MainActor in
+                await ContentSyncService.shared.syncNow(context: modelContext)
             }
         }
     }

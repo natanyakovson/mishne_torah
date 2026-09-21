@@ -129,6 +129,21 @@ struct RemoteContentChanges: Equatable {
     var sections: [RemoteSectionDTO]
     var chapters: [RemoteChapterDTO]
     var halakhot: [RemoteHalakhahDTO]
+    var tombstones: [RemoteContentTombstoneDTO] = []
 
     static let empty = RemoteContentChanges(books: [], sections: [], chapters: [], halakhot: [])
+}
+
+struct RemoteContentTombstoneDTO: Decodable, Equatable {
+    let tableName: String
+    let contentID: String
+    let contentVersion: Int
+    let deletedAt: String
+
+    private enum CodingKeys: String, CodingKey {
+        case tableName = "table_name"
+        case contentID = "content_id"
+        case contentVersion = "content_version"
+        case deletedAt = "deleted_at"
+    }
 }

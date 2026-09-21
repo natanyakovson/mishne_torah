@@ -10,12 +10,17 @@ enum SeedDataLoader {
         let bookCount = try context.fetchCount(bookDescriptor)
         let halakhahCount = try context.fetchCount(halakhahDescriptor)
 
-        if bookCount == 14, halakhahCount == expectedHalakhot {
+        // Server content may grow or be soft-deleted. Never replace a nonempty library.
+        if bookCount > 0 || halakhahCount > 0 {
             ensureSettingsExist(context: context)
             return
         }
 
-        try replaceLibraryData(context: context)
+        let autosave = context.autosaveEnabled
+        context.autosaveEnabled = false
+        defer { context.autosaveEnabled = autosave }
+        var completed = false
+        defer { if !completed { context.rollback() } }
         ensureSettingsExist(context: context)
 
         var insertedHalakhot = 0
@@ -62,7 +67,6 @@ enum SeedDataLoader {
                         insertedHalakhot += 1
 
                         if insertedHalakhot.isMultiple(of: 500) {
-                            try context.save()
                             await Task.yield()
                         }
                     }
@@ -71,6 +75,7 @@ enum SeedDataLoader {
         }
 
         try context.save()
+        completed = true
     }
 
     private static func ensureSettingsExist(context: ModelContext) {

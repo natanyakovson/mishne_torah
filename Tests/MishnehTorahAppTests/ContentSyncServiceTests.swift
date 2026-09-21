@@ -5,6 +5,8 @@ import XCTest
 
 @MainActor
 final class ContentSyncServiceTests: XCTestCase {
+    private var containers: [ModelContainer] = []
+
     func testSkipsDownloadWhenRemoteVersionIsNotNewer() async throws {
         let store = InMemorySyncStateStore(state: SyncState(lastContentVersion: 2, lastSuccessfulSyncAt: nil, schemaVersion: 1))
         let remote = MockRemoteContent(
@@ -34,7 +36,11 @@ final class ContentSyncServiceTests: XCTestCase {
         first.chapter = chapter
         second.chapter = chapter
         chapter.halakhot = [second, first]
-        [book, section, chapter, first, second].forEach { context.insert($0) }
+        context.insert(book)
+        context.insert(section)
+        context.insert(chapter)
+        context.insert(first)
+        context.insert(second)
 
         let seed = SeedBook(order: 1, titleHebrew: "ספר המדע", titleRussian: "Книга знания", sections: [
             SeedSection(order: 1, titleHebrew: "הלכות יסודי התורה", titleRussian: "Законы основ Торы", chapters: [
@@ -127,8 +133,64 @@ final class ContentSyncServiceTests: XCTestCase {
         XCTAssertEqual(store.load().lastContentVersion, 1)
     }
 
+    func testOneLawDeltaUpdatesBothLanguagesWithoutReplacingLocalIdentity() async throws {
+        let context = try makeContext()
+        let store = InMemorySyncStateStore()
+        let first = MockRemoteContent(meta: RemoteContentMetaDTO(contentVersion: 1, schemaVersion: 2, updatedAt: "2026-09-04T12:00:00Z"), changes: sampleChanges())
+        await ContentSyncService(remote: first, stateStore: store).syncNow(context: context)
+        let law = try XCTUnwrap(context.fetch(FetchDescriptor<MTHalakhah>()).first)
+        let localID = law.id
+        let delta = RemoteHalakhahDTO(id: "halakhah-uuid", contentID: "halakha:13:1:0", chapterID: "chapter-uuid", lawNumber: 1, partIndex: 0, textRussian: "Исправленный текст", textHebrew: "טקסט מתוקן", notes: [], sortOrder: 1, contentVersion: 2, isPublished: true, deletedAt: nil, updatedAt: "2026-09-05T10:00:00Z")
+        let second = MockRemoteContent(meta: RemoteContentMetaDTO(contentVersion: 2, schemaVersion: 2, updatedAt: "2026-09-05T10:00:00Z"), changes: RemoteContentChanges(books: [], sections: [], chapters: [], halakhot: [delta]))
+        await ContentSyncService(remote: second, stateStore: store).syncNow(context: context)
+        XCTAssertEqual(law.id, localID)
+        XCTAssertEqual(law.russianText, "Исправленный текст")
+        XCTAssertEqual(law.hebrewText, "טקסט מתוקן")
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MTHalakhah>()), 1)
+        XCTAssertEqual(store.load().lastContentVersion, 2)
+        try await SeedDataLoader.seedIfNeeded(context: context)
+        XCTAssertEqual(law.russianText, "Исправленный текст")
+    }
+
+    func testEmptyNewVersionDoesNotAdvanceCheckpoint() async throws {
+        let store = InMemorySyncStateStore()
+        await ContentSyncService(remote: MockRemoteContent(), stateStore: store).syncNow(context: try makeContext())
+        XCTAssertEqual(store.load().lastContentVersion, 0)
+        XCTAssertNil(store.load().lastSuccessfulSyncAt)
+    }
+
+    func testTombstoneDeltaPreservesLastLocalText() async throws {
+        let context = try makeContext()
+        let store = InMemorySyncStateStore()
+        await ContentSyncService(remote: MockRemoteContent(changes: sampleChanges()), stateStore: store).syncNow(context: context)
+        let law = try XCTUnwrap(context.fetch(FetchDescriptor<MTHalakhah>()).first)
+        let text = law.russianText
+        let changes = RemoteContentChanges(books: [], sections: [], chapters: [], halakhot: [], tombstones: [
+            RemoteContentTombstoneDTO(tableName: "halakhot", contentID: "halakha:13:1:0", contentVersion: 2, deletedAt: "2026-09-05T10:00:00Z")
+        ])
+        let remote = MockRemoteContent(meta: RemoteContentMetaDTO(contentVersion: 2, schemaVersion: 2, updatedAt: "2026-09-05T10:00:00Z"), changes: changes)
+        await ContentSyncService(remote: remote, stateStore: store).syncNow(context: context)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MTHalakhah>()), 1)
+        XCTAssertEqual(law.russianText, text)
+        XCTAssertNotNil(law.deletedAt)
+        XCTAssertEqual(law.contentVersion, 2)
+        XCTAssertEqual(store.load().lastContentVersion, 2)
+    }
+
+    func testMissingParentRollsBackEarlierChanges() async throws {
+        let context = try makeContext()
+        let store = InMemorySyncStateStore()
+        var changes = sampleChanges()
+        changes.sections = []
+        await ContentSyncService(remote: MockRemoteContent(changes: changes), stateStore: store).syncNow(context: context)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MTBook>()), 0)
+        XCTAssertEqual(store.load().lastContentVersion, 0)
+    }
+
     private func makeContext() throws -> ModelContext {
-        try PersistenceController(inMemory: true).container.mainContext
+        let container = try PersistenceController(inMemory: true).container
+        containers.append(container)
+        return container.mainContext
     }
 
     private func sampleChanges() -> RemoteContentChanges {

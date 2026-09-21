@@ -18,22 +18,25 @@ final class RemoteContentServiceTests: XCTestCase {
 
         URLProtocolStub.handler = { request in
             let path = request.url?.path ?? ""
+            if path.contains("/content_meta") {
+                return try Self.response([["content_version": 1, "schema_version": 2, "updated_at": "2026-09-04T10:00:00Z"]])
+            }
             if path.contains("/halakhot") {
                 switch request.value(forHTTPHeaderField: "Range") {
                 case "0-1":
-                    return Self.response([
+                    return try Self.response([
                         Self.halakhahJSON(id: "h1", contentID: "halakha:13:1:0"),
                         Self.halakhahJSON(id: "h2", contentID: "halakha:13:2:0")
-                    ])
+                    ], start: 0, total: 3)
                 case "2-3":
-                    return Self.response([
+                    return try Self.response([
                         Self.halakhahJSON(id: "h3", contentID: "halakha:13:3:0")
-                    ])
+                    ], start: 2, total: 3)
                 default:
-                    return Self.response([])
+                    return try Self.response([])
                 }
             }
-            return Self.response([])
+            return try Self.response([])
         }
 
         let changes = try await service.fetchChanges(localVersion: 0, updatedAfter: nil)
@@ -45,13 +48,45 @@ final class RemoteContentServiceTests: XCTestCase {
         XCTAssertEqual(halakhahRanges, ["0-1", "2-3"])
     }
 
-    fileprivate static func response(_ rows: [[String: Any]]) throws -> (HTTPURLResponse, Data) {
+    func testServerLimitSmallerThanRequestedPageStillFetchesAllRows() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let service = RemoteContentService(config: SupabaseConfig(projectURL: URL(string: "https://example.supabase.co")!, publishableKey: "sb_publishable_test"), session: URLSession(configuration: configuration), pageSize: 1000)
+        URLProtocolStub.handler = { request in
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+            if request.url!.path.contains("/content_meta") {
+                return try Self.response([["content_version": 2, "schema_version": 2, "updated_at": "2026-09-04T10:00:00Z"]])
+            }
+            if request.url!.path.contains("/halakhot") {
+                let start = Int(request.value(forHTTPHeaderField: "Range")!.split(separator: "-")[0])!
+                XCTAssertTrue(request.url!.absoluteString.contains("content_version"))
+                return try Self.response([Self.halakhahJSON(id: "h\(start)", contentID: "halakha:13:\(start):0")], start: start, total: 3)
+            }
+            return try Self.response([])
+        }
+        let changes = try await service.fetchChanges(localVersion: 1, updatedAfter: "2026-09-04T10:00:00Z")
+        XCTAssertEqual(changes.halakhot.count, 3)
+    }
+
+    func testTruncatedEmptyPageFailsInsteadOfReturningPartialCorpus() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let service = RemoteContentService(config: SupabaseConfig(projectURL: URL(string: "https://example.supabase.co")!, publishableKey: "sb_publishable_test"), session: URLSession(configuration: configuration))
+        URLProtocolStub.handler = { _ in try Self.response([], total: 1) }
+        do {
+            _ = try await service.fetchContentMeta()
+            XCTFail("Incomplete response must throw")
+        } catch {}
+    }
+
+    fileprivate static func response(_ rows: [[String: Any]], start: Int = 0, total: Int? = nil) throws -> (HTTPURLResponse, Data) {
         let data = try JSONSerialization.data(withJSONObject: rows)
         let response = HTTPURLResponse(
             url: URL(string: "https://example.supabase.co")!,
             statusCode: 200,
             httpVersion: nil,
-            headerFields: nil
+            headerFields: ["Content-Range": rows.isEmpty ? "*/\(total ?? 0)" : "\(start)-\(start + rows.count - 1)/\(total ?? rows.count)"]
         )!
         return (response, data)
     }

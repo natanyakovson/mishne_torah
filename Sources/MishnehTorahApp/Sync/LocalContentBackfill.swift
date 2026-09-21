@@ -11,19 +11,26 @@ enum LocalContentBackfill {
     }
 
     @discardableResult
-    static func backfillContentIDs(context: ModelContext, seeds: [SeedBook] = SeedBook.all) throws -> Report {
+    static func backfillContentIDs(context: ModelContext, seeds: [SeedBook]? = nil) throws -> Report {
         var report = Report()
+        if seeds == nil,
+           try context.fetchCount(FetchDescriptor<MTBook>(predicate: #Predicate { $0.contentID == nil })) == 0,
+           try context.fetchCount(FetchDescriptor<MTSection>(predicate: #Predicate { $0.contentID == nil })) == 0,
+           try context.fetchCount(FetchDescriptor<MTChapter>(predicate: #Predicate { $0.contentID == nil })) == 0,
+           try context.fetchCount(FetchDescriptor<MTHalakhah>(predicate: #Predicate { $0.contentID == nil })) == 0 {
+            return report
+        }
         let localBooks = try context.fetch(FetchDescriptor<MTBook>()).sorted { $0.order < $1.order }
         let booksByOrder = Dictionary(grouping: localBooks, by: \.order)
 
-        for seedBook in seeds {
+        for seedBook in seeds ?? SeedBook.all {
             guard let book = single(booksByOrder[seedBook.order]) else {
                 report.issues.append("book order \(seedBook.order): no unique local match")
                 continue
             }
 
             let bookContentID = ContentIDGenerator.bookID(order: seedBook.order)
-            if book.contentID != bookContentID {
+            if book.contentID == nil {
                 book.contentID = bookContentID
                 report.booksUpdated += 1
             }
@@ -36,7 +43,7 @@ enum LocalContentBackfill {
                 }
 
                 let sectionContentID = ContentIDGenerator.sectionID(bookOrder: seedBook.order, sectionOrder: seedSection.order)
-                if section.contentID != sectionContentID {
+                if section.contentID == nil {
                     section.contentID = sectionContentID
                     report.sectionsUpdated += 1
                 }
@@ -50,12 +57,14 @@ enum LocalContentBackfill {
 
                     let m770ID = String(seedChapter.m770Id)
                     let chapterContentID = ContentIDGenerator.chapterID(m770ID: m770ID)
-                    if chapter.contentID != chapterContentID {
+                    if chapter.contentID == nil {
                         chapter.contentID = chapterContentID
                         report.chaptersUpdated += 1
                     }
-                    chapter.m770ID = m770ID
-                    chapter.m770URL = seedChapter.m770Url
+                    if chapter.m770ID == nil { chapter.m770ID = m770ID }
+                    if chapter.m770URL == nil { chapter.m770URL = seedChapter.m770Url }
+
+                    guard chapter.halakhot.contains(where: { $0.contentID == nil }) else { continue }
 
                     var lawOccurrences: [Int: Int] = [:]
                     var unmatchedHalakhot = chapter.halakhot
@@ -65,8 +74,15 @@ enum LocalContentBackfill {
                     }
 
                     for (index, seedHalakhah) in seedChapter.halakhot.enumerated() {
+                        let partIndex = lawOccurrences[seedHalakhah.number, default: 0]
+                        lawOccurrences[seedHalakhah.number] = partIndex + 1
+                        let halakhahContentID = ContentIDGenerator.halakhahID(m770ID: m770ID, lawNumber: seedHalakhah.number, partIndex: partIndex)
+                        if let existing = unmatchedHalakhot.firstIndex(where: { $0.contentID == halakhahContentID }) {
+                            unmatchedHalakhot.remove(at: existing)
+                            continue
+                        }
                         guard let matchIndex = unmatchedHalakhot.firstIndex(where: {
-                            $0.number == seedHalakhah.number
+                            $0.contentID == nil && $0.number == seedHalakhah.number
                                 && $0.hebrewText == seedHalakhah.hebrewText
                                 && ($0.russianText ?? "") == (seedHalakhah.russianText ?? "")
                         }) else {
@@ -74,10 +90,6 @@ enum LocalContentBackfill {
                             continue
                         }
                         let halakhah = unmatchedHalakhot.remove(at: matchIndex)
-
-                        let partIndex = lawOccurrences[seedHalakhah.number, default: 0]
-                        lawOccurrences[seedHalakhah.number] = partIndex + 1
-                        let halakhahContentID = ContentIDGenerator.halakhahID(m770ID: m770ID, lawNumber: seedHalakhah.number, partIndex: partIndex)
 
                         if halakhah.contentID != halakhahContentID {
                             halakhah.contentID = halakhahContentID

@@ -5,6 +5,8 @@ import SwiftData
 final class ContentSyncService {
     enum SyncError: Error {
         case missingParent(String)
+        case invalidSnapshot
+        case unsupportedSchema
     }
 
     static let shared = ContentSyncService()
@@ -12,6 +14,7 @@ final class ContentSyncService {
     private let remote: RemoteContentFetching?
     private let stateStore: SyncStateStoring
     private let logger: SyncLogging
+    private var isSyncing = false
 
     init(
         remote: RemoteContentFetching? = nil,
@@ -29,6 +32,9 @@ final class ContentSyncService {
     }
 
     func syncNow(context: ModelContext) async {
+        guard !isSyncing else { return }
+        isSyncing = true
+        defer { isSyncing = false }
         do {
             let backfillReport = try LocalContentBackfill.backfillContentIDs(context: context)
             if !backfillReport.issues.isEmpty {
@@ -44,6 +50,8 @@ final class ContentSyncService {
             logger.debug("local version: \(state.lastContentVersion)")
 
             let meta = try await remote.fetchContentMeta()
+            guard (1...2).contains(meta.schemaVersion) else { throw SyncError.unsupportedSchema }
+            guard meta.contentVersion >= state.lastContentVersion else { throw SyncError.invalidSnapshot }
             logger.debug("remote version: \(meta.contentVersion)")
 
             guard meta.contentVersion > state.lastContentVersion else {
@@ -57,15 +65,28 @@ final class ContentSyncService {
             logger.debug("fetching changes...")
             let changes = try await remote.fetchChanges(
                 localVersion: state.lastContentVersion,
-                updatedAfter: state.lastSuccessfulSyncAt
+                updatedAfter: nil
             )
+            // Do not checkpoint a moving or unexpectedly empty snapshot.
+            let confirmedMeta = try await remote.fetchContentMeta()
+            guard confirmedMeta == meta, changes != .empty else { throw SyncError.invalidSnapshot }
             logger.debug("books changed: \(changes.books.count)")
             logger.debug("sections changed: \(changes.sections.count)")
             logger.debug("chapters changed: \(changes.chapters.count)")
             logger.debug("halakhot changed: \(changes.halakhot.count)")
 
-            try apply(changes: changes, context: context)
-            try context.save()
+            // No suspension inside this transaction; autosave cannot persist half an update.
+            // Preserve pending reader activity before a possible sync rollback.
+            if context.hasChanges { try context.save() }
+            do {
+                try context.transaction {
+                    try apply(changes: changes, context: context)
+                    try context.save()
+                }
+            } catch {
+                context.rollback()
+                throw error
+            }
 
             state.lastContentVersion = meta.contentVersion
             state.lastSuccessfulSyncAt = meta.updatedAt
@@ -78,10 +99,10 @@ final class ContentSyncService {
     }
 
     private func apply(changes: RemoteContentChanges, context: ModelContext) throws {
-        var booksByContentID = Dictionary(uniqueKeysWithValues: try context.fetch(FetchDescriptor<MTBook>()).compactMap { book in
+        var booksByContentID = try uniqueIndex(try context.fetch(FetchDescriptor<MTBook>()).compactMap { book in
             book.contentID.map { ($0, book) }
         })
-        var booksByRemoteID = Dictionary(uniqueKeysWithValues: booksByContentID.values.compactMap { book in
+        var booksByRemoteID = try uniqueIndex(booksByContentID.values.compactMap { book in
             book.remoteID.map { ($0, book) }
         })
 
@@ -103,10 +124,10 @@ final class ContentSyncService {
             booksByRemoteID[dto.id] = book
         }
 
-        var sectionsByContentID = Dictionary(uniqueKeysWithValues: try context.fetch(FetchDescriptor<MTSection>()).compactMap { section in
+        var sectionsByContentID = try uniqueIndex(try context.fetch(FetchDescriptor<MTSection>()).compactMap { section in
             section.contentID.map { ($0, section) }
         })
-        var sectionsByRemoteID = Dictionary(uniqueKeysWithValues: sectionsByContentID.values.compactMap { section in
+        var sectionsByRemoteID = try uniqueIndex(sectionsByContentID.values.compactMap { section in
             section.remoteID.map { ($0, section) }
         })
 
@@ -135,10 +156,10 @@ final class ContentSyncService {
             sectionsByRemoteID[dto.id] = section
         }
 
-        var chaptersByContentID = Dictionary(uniqueKeysWithValues: try context.fetch(FetchDescriptor<MTChapter>()).compactMap { chapter in
+        var chaptersByContentID = try uniqueIndex(try context.fetch(FetchDescriptor<MTChapter>()).compactMap { chapter in
             chapter.contentID.map { ($0, chapter) }
         })
-        var chaptersByRemoteID = Dictionary(uniqueKeysWithValues: chaptersByContentID.values.compactMap { chapter in
+        var chaptersByRemoteID = try uniqueIndex(chaptersByContentID.values.compactMap { chapter in
             chapter.remoteID.map { ($0, chapter) }
         })
 
@@ -167,7 +188,7 @@ final class ContentSyncService {
             chaptersByRemoteID[dto.id] = chapter
         }
 
-        var halakhotByContentID = Dictionary(uniqueKeysWithValues: try context.fetch(FetchDescriptor<MTHalakhah>()).compactMap { halakhah in
+        var halakhotByContentID = try uniqueIndex(try context.fetch(FetchDescriptor<MTHalakhah>()).compactMap { halakhah in
             halakhah.contentID.map { ($0, halakhah) }
         })
 
@@ -197,6 +218,33 @@ final class ContentSyncService {
             }
             halakhotByContentID[dto.contentID] = halakhah
         }
+
+        for tombstone in changes.tombstones {
+            guard let date = parseDate(tombstone.deletedAt) else { throw SyncError.invalidSnapshot }
+            switch tombstone.tableName {
+            case "books":
+                booksByContentID[tombstone.contentID]?.deletedAt = date
+                booksByContentID[tombstone.contentID]?.contentVersion = tombstone.contentVersion
+            case "sections":
+                sectionsByContentID[tombstone.contentID]?.deletedAt = date
+                sectionsByContentID[tombstone.contentID]?.contentVersion = tombstone.contentVersion
+            case "chapters":
+                chaptersByContentID[tombstone.contentID]?.deletedAt = date
+                chaptersByContentID[tombstone.contentID]?.contentVersion = tombstone.contentVersion
+            case "halakhot":
+                halakhotByContentID[tombstone.contentID]?.deletedAt = date
+                halakhotByContentID[tombstone.contentID]?.contentVersion = tombstone.contentVersion
+            default: throw SyncError.invalidSnapshot
+            }
+        }
+    }
+
+    private func uniqueIndex<T>(_ pairs: [(String, T)]) throws -> [String: T] {
+        var result: [String: T] = [:]
+        for (id, value) in pairs {
+            guard result.updateValue(value, forKey: id) == nil else { throw SyncError.invalidSnapshot }
+        }
+        return result
     }
 
     private func encodeNotes(_ notes: [String]) -> String? {

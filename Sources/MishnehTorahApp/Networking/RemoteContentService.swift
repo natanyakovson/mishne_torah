@@ -9,6 +9,8 @@ struct RemoteContentService: RemoteContentFetching {
     enum RemoteError: Error {
         case badResponse(Int)
         case emptyMeta
+        case incompletePage
+        case invalidURL
     }
 
     private let config: SupabaseConfig
@@ -18,7 +20,7 @@ struct RemoteContentService: RemoteContentFetching {
     init(config: SupabaseConfig, session: URLSession = .shared, pageSize: Int = 1_000) {
         self.config = config
         self.session = session
-        self.pageSize = pageSize
+        self.pageSize = max(1, min(pageSize, 1_000))
         _ = SupabaseClientProvider.makeClient(config: config)
     }
 
@@ -37,50 +39,54 @@ struct RemoteContentService: RemoteContentFetching {
     }
 
     func fetchChanges(localVersion: Int, updatedAfter: String?) async throws -> RemoteContentChanges {
-        let filters = changeFilters(localVersion: localVersion, updatedAfter: updatedAfter)
+        let meta = try await fetchContentMeta()
+        var filters = changeFilters(localVersion: localVersion, updatedAfter: updatedAfter)
+        // Ignore staged importer rows until their version has been published.
+        filters["and"] = "(content_version.lte.\(meta.contentVersion))"
 
         let books: [RemoteBookDTO] = try await fetchRows(
             table: "books",
             select: "*",
             filters: filters,
-            order: "sort_order.asc",
+            order: "content_id.asc",
             pageSize: pageSize
         )
         let sections: [RemoteSectionDTO] = try await fetchRows(
             table: "sections",
             select: "*",
             filters: filters,
-            order: "sort_order.asc",
+            order: "content_id.asc",
             pageSize: pageSize
         )
         let chapters: [RemoteChapterDTO] = try await fetchRows(
             table: "chapters",
             select: "*",
             filters: filters,
-            order: "updated_at.asc,content_id.asc",
+            order: "content_id.asc",
             pageSize: pageSize
         )
         let halakhot: [RemoteHalakhahDTO] = try await fetchRows(
             table: "halakhot",
             select: "*",
             filters: filters,
-            order: "updated_at.asc,content_id.asc",
+            order: "content_id.asc",
             pageSize: pageSize
         )
 
-        return RemoteContentChanges(books: books, sections: sections, chapters: chapters, halakhot: halakhot)
+        let tombstones: [RemoteContentTombstoneDTO] = try await fetchRows(
+            table: "rpc/content_tombstones", select: "*",
+            filters: ["content_version": "gt.\(localVersion)", "and": "(content_version.lte.\(meta.contentVersion))"],
+            order: "table_name.asc,content_id.asc", pageSize: pageSize
+        )
+        return RemoteContentChanges(books: books, sections: sections, chapters: chapters, halakhot: halakhot, tombstones: tombstones)
     }
 
     private func changeFilters(localVersion: Int, updatedAfter: String?) -> [String: String] {
-        var filters = [
+        let filters = [
             "is_published": "eq.true",
-            "deleted_at": "is.null"
+            "deleted_at": "is.null",
+            "content_version": "gt.\(localVersion)"
         ]
-        if let updatedAfter, !updatedAfter.isEmpty {
-            filters["updated_at"] = "gt.\(updatedAfter)"
-        } else {
-            filters["content_version"] = "gt.\(localVersion)"
-        }
         return filters
     }
 
@@ -93,21 +99,25 @@ struct RemoteContentService: RemoteContentFetching {
     ) async throws -> [T] {
         var rows: [T] = []
         var start = 0
+        var expectedTotal: Int?
 
         while true {
             let end = start + pageSize - 1
-            let page: [T] = try await requestRows(
+            let (page, total): ([T], Int) = try await requestRows(
                 table: table,
                 select: select,
                 filters: filters,
                 order: order,
                 range: "\(start)-\(end)"
             )
+            if let expectedTotal, total != expectedTotal { throw RemoteError.incompletePage }
+            expectedTotal = total
             rows.append(contentsOf: page)
-            if page.count < pageSize {
+            if rows.count == total {
                 break
             }
-            start += pageSize
+            guard !page.isEmpty, rows.count < total else { throw RemoteError.incompletePage }
+            start += page.count
         }
 
         return rows
@@ -119,7 +129,7 @@ struct RemoteContentService: RemoteContentFetching {
         filters: [String: String],
         order: String?,
         range: String
-    ) async throws -> [T] {
+    ) async throws -> ([T], Int) {
         var components = URLComponents(url: config.projectURL.appending(path: "/rest/v1/\(table)"), resolvingAgainstBaseURL: false)
         var queryItems = [URLQueryItem(name: "select", value: select)]
         queryItems.append(contentsOf: filters.map { URLQueryItem(name: $0.key, value: $0.value) })
@@ -128,10 +138,15 @@ struct RemoteContentService: RemoteContentFetching {
         }
         components?.queryItems = queryItems
 
-        guard let url = components?.url else { return [] }
+        guard let url = components?.url else { throw RemoteError.invalidURL }
         var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue(config.publishableKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(config.publishableKey)", forHTTPHeaderField: "Authorization")
+        if !config.publishableKey.hasPrefix("sb_publishable_") {
+            request.setValue("Bearer \(config.publishableKey)", forHTTPHeaderField: "Authorization")
+        }
+        request.setValue("count=exact", forHTTPHeaderField: "Prefer")
         request.setValue("items", forHTTPHeaderField: "Range-Unit")
         request.setValue(range, forHTTPHeaderField: "Range")
 
@@ -142,6 +157,17 @@ struct RemoteContentService: RemoteContentFetching {
         guard (200...299).contains(http.statusCode) else {
             throw RemoteError.badResponse(http.statusCode)
         }
-        return try JSONDecoder().decode([T].self, from: data)
+        guard let contentRange = http.value(forHTTPHeaderField: "Content-Range"),
+              let totalString = contentRange.split(separator: "/").last,
+              let total = Int(totalString), total >= 0 else { throw RemoteError.incompletePage }
+        let rows = try JSONDecoder().decode([T].self, from: data)
+        if !rows.isEmpty {
+            let returnedRange = contentRange.split(separator: "/")[0].split(separator: "-")
+            let requestedStart = range.split(separator: "-").first.flatMap { Int($0) }
+            guard returnedRange.count == 2,
+                  let first = Int(returnedRange[0]), let last = Int(returnedRange[1]),
+                  first == requestedStart, last - first + 1 == rows.count else { throw RemoteError.incompletePage }
+        }
+        return (rows, total)
     }
 }
