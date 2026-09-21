@@ -7,7 +7,6 @@ struct LibraryView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \MTBook.order) private var books: [MTBook]
     @Query private var settings: [MTReaderSettings]
-    @State private var isShowingMenu = false
     @State private var currentDate = Date()
     @State private var navigationResetID = UUID()
 
@@ -54,19 +53,7 @@ struct LibraryView: View {
             .navigationTitle("")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isShowingMenu.toggle()
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                    }
-                    .help("Меню")
-                    .accessibilityLabel("Меню")
-                    .popover(isPresented: $isShowingMenu, arrowEdge: .top) {
-                        AppMenuView(settings: activeSettings, isPresented: $isShowingMenu)
-                            .frame(width: 300)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .presentationCompactAdaptation(.popover)
-                    }
+                    HomeMenuControl(settings: activeSettings)
                 }
             }
             .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
@@ -260,6 +247,36 @@ struct ProjectInfoView: View {
         .background(SefariaStyle.background(for: colorScheme))
         .navigationTitle("О проекте")
         .homeNavigationButton()
+    }
+}
+
+private struct HomeMenuControl: View {
+    let settings: MTReaderSettings
+    @State private var isShowingMenu = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("בס״ד")
+                .font(.system(size: 13))
+                .foregroundStyle(SefariaStyle.green)
+                .fixedSize()
+                .allowsHitTesting(false)
+            Button {
+                isShowingMenu = true
+            } label: {
+                Image(systemName: "line.3.horizontal")
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .help("Меню")
+            .accessibilityLabel("Меню")
+        }
+        .popover(isPresented: $isShowingMenu, arrowEdge: .top) {
+            AppMenuView(settings: settings, isPresented: $isShowingMenu)
+                .frame(width: 300)
+                .fixedSize(horizontal: false, vertical: true)
+                .presentationCompactAdaptation(.popover)
+        }
     }
 }
 
