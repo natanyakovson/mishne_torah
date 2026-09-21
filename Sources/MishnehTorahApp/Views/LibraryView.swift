@@ -52,6 +52,16 @@ struct LibraryView: View {
             .background(SefariaStyle.background(for: colorScheme))
             .navigationTitle("")
             .toolbar {
+                if #available(iOS 26.0, macOS 26.0, *) {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        homeInscription
+                    }
+                    .sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        homeInscription
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     HomeMenuControl(settings: activeSettings)
                 }
@@ -70,6 +80,15 @@ struct LibraryView: View {
             }
         }
         .id(navigationResetID)
+    }
+
+    private var homeInscription: some View {
+        Text("בס״ד")
+            .font(.system(size: 13))
+            .foregroundStyle(SefariaStyle.green)
+            .fixedSize()
+            .padding(.trailing, 12)
+            .allowsHitTesting(false)
     }
 }
 
@@ -256,11 +275,6 @@ private struct HomeMenuControl: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text("בס״ד")
-                .font(.system(size: 13))
-                .foregroundStyle(SefariaStyle.green)
-                .fixedSize()
-                .allowsHitTesting(false)
             Button {
                 isShowingMenu = true
             } label: {
