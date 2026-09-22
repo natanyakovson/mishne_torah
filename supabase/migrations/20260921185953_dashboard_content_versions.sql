@@ -34,6 +34,39 @@ end;
 $$;
 revoke all on function public.publish_dashboard_content_edit() from public, anon, authenticated;
 
+-- Publish Dashboard edits made before this trigger existed. The timestamp is
+-- compared with the last successfully published corpus timestamp; text itself
+-- is never rewritten here.
+do $$
+declare
+  published_version bigint;
+  published_at timestamptz;
+  changed_rows bigint;
+begin
+  select content_version, updated_at into published_version, published_at
+  from public.content_meta where id = 1 for update;
+
+  select count(*) into changed_rows from (
+    select 1 from public.books where updated_at > published_at and content_version <= published_version
+    union all select 1 from public.sections where updated_at > published_at and content_version <= published_version
+    union all select 1 from public.chapters where updated_at > published_at and content_version <= published_version
+    union all select 1 from public.halakhot where updated_at > published_at and content_version <= published_version
+  ) pending;
+
+  if changed_rows > 0 then
+    update public.books set content_version = published_version + 1, content_hash = ''
+      where updated_at > published_at and content_version <= published_version;
+    update public.sections set content_version = published_version + 1, content_hash = ''
+      where updated_at > published_at and content_version <= published_version;
+    update public.chapters set content_version = published_version + 1, content_hash = ''
+      where updated_at > published_at and content_version <= published_version;
+    update public.halakhot set content_version = published_version + 1, content_hash = ''
+      where updated_at > published_at and content_version <= published_version;
+    update public.content_meta set content_version = published_version + 1 where id = 1;
+  end if;
+end;
+$$;
+
 create trigger zz_publish_dashboard_edit before update on public.books
 for each row execute function public.publish_dashboard_content_edit();
 create trigger zz_publish_dashboard_edit before update on public.sections
