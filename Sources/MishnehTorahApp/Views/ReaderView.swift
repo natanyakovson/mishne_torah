@@ -14,9 +14,11 @@ struct ReaderView: View {
     @State private var activeSheet: ReaderSheet?
     @State private var isReaderMenuExpanded = false
     @State private var chapter: MTChapter
+    @State private var pendingTargetContentID: String?
 
-    init(chapter: MTChapter) {
+    init(chapter: MTChapter, targetHalakhahContentID: String? = nil) {
         _chapter = State(initialValue: chapter)
+        _pendingTargetContentID = State(initialValue: targetHalakhahContentID)
     }
 
     private var textSize: Double {
@@ -50,8 +52,9 @@ struct ReaderView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 22) {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 22) {
                 ReaderHeader(
                     chapter: chapter,
                     previousChapter: chapterNavigation.previous,
@@ -75,7 +78,7 @@ struct ReaderView: View {
                     } deleteHighlight: { range, language in
                         deleteHighlights(in: range, for: halakhah, language: language)
                     }
-                        .id(halakhah.id)
+                        .id(halakhah.contentID ?? halakhah.id.uuidString)
                 }
                 if let book = chapter.section?.book {
                     ChapterNavigation(
@@ -85,11 +88,19 @@ struct ReaderView: View {
                     )
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 24)
-            .padding(.bottom, 96)
-            .frame(maxWidth: 1080)
-            .frame(maxWidth: .infinity)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 24)
+                .padding(.bottom, 96)
+                .frame(maxWidth: 1080)
+                .frame(maxWidth: .infinity)
+            }
+            .task(id: pendingTargetContentID) {
+                guard let target = pendingTargetContentID,
+                      chapter.sortedHalakhot.contains(where: { $0.contentID == target }) else { return }
+                await Task.yield()
+                proxy.scrollTo(target, anchor: .top)
+                pendingTargetContentID = nil
+            }
         }
         .simultaneousGesture(
             TapGesture().onEnded {

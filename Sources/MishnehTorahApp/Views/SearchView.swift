@@ -9,13 +9,15 @@ struct SearchView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
     @State private var navigationResetID = UUID()
+    @State private var searchIndex: [SearchIndexEntry] = []
+    @State private var halakhotByID: [UUID: MTHalakhah] = [:]
 
     var body: some View {
         NavigationStack {
             List(results) { halakhah in
                 NavigationLink {
                     if let chapter = halakhah.chapter {
-                        ReaderView(chapter: chapter)
+                        ReaderView(chapter: chapter, targetHalakhahContentID: halakhah.contentID)
                     } else {
                         ContentUnavailableView("Глава не найдена", systemImage: "doc.text")
                     }
@@ -54,7 +56,10 @@ struct SearchView: View {
             }
             .onSubmit(of: .search) {
                 searchTask?.cancel()
-                performSearch()
+                scheduleSearch(debounce: false)
+            }
+            .task {
+                await prepareSearchIndex()
             }
         }
         .id(navigationResetID)
@@ -63,7 +68,7 @@ struct SearchView: View {
         }
     }
 
-    private func scheduleSearch() {
+    private func scheduleSearch(debounce: Bool = true) {
         searchTask?.cancel()
 
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -74,34 +79,56 @@ struct SearchView: View {
         }
 
         isSearching = true
+        let index = searchIndex
         searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                performSearch()
+            if debounce {
+                try? await Task.sleep(for: .milliseconds(250))
             }
+            guard !Task.isCancelled else { return }
+            let ids = await Self.matchingIDs(in: index, query: trimmed)
+            guard !Task.isCancelled,
+                  trimmed == query.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+            results = ids.compactMap { halakhotByID[$0] }
+            isSearching = false
         }
     }
 
-    private func performSearch() {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 2 else {
-            results = []
-            isSearching = false
-            return
-        }
-
+    private func prepareSearchIndex() async {
+        guard searchIndex.isEmpty else { return }
         do {
-            let descriptor = FetchDescriptor<MTHalakhah>()
-            let allHalakhot = try modelContext.fetch(descriptor)
-            results = Array(allHalakhot.lazy.filter { halakhah in
-                TextSearchNormalizer.contains(halakhah.searchableText, query: trimmed)
-            }.prefix(120))
+            let allHalakhot = try modelContext.fetch(FetchDescriptor<MTHalakhah>())
+            halakhotByID = Dictionary(uniqueKeysWithValues: allHalakhot.map { ($0.id, $0) })
+            let sources = allHalakhot.map { SearchIndexSource(id: $0.id, text: $0.searchableText) }
+            searchIndex = await Task.detached(priority: .userInitiated) {
+                sources.map { SearchIndexEntry(id: $0.id, normalizedText: TextSearchNormalizer.normalized($0.text)) }
+            }.value
+            if query.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
+                scheduleSearch(debounce: false)
+            }
         } catch {
-            results = []
+            searchIndex = []
         }
+    }
 
-        isSearching = false
+    private nonisolated static func matchingIDs(in index: [SearchIndexEntry], query: String) async -> [UUID] {
+        let worker = Task.detached(priority: .userInitiated) {
+            let needle = TextSearchNormalizer.normalized(query).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !needle.isEmpty else { return [UUID]() }
+            var matches: [UUID] = []
+            for (offset, entry) in index.enumerated() {
+                if offset.isMultiple(of: 256) { try Task.checkCancellation() }
+                if entry.normalizedText.contains(needle) {
+                    matches.append(entry.id)
+                    if matches.count == 120 { break }
+                }
+            }
+            return matches
+        }
+        return (try? await withTaskCancellationHandler {
+            try await worker.value
+        } onCancel: {
+            worker.cancel()
+        }) ?? []
     }
 
     private func highlightedPreview(for halakhah: MTHalakhah) -> AttributedString {
@@ -157,4 +184,14 @@ struct SearchView: View {
 
         return result
     }
+}
+
+private struct SearchIndexSource: Sendable {
+    let id: UUID
+    let text: String
+}
+
+private struct SearchIndexEntry: Sendable {
+    let id: UUID
+    let normalizedText: String
 }

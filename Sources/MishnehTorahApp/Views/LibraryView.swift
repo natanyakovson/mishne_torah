@@ -303,7 +303,11 @@ struct AppMenuView: View {
         Binding(
             get: { ReadingCycle(rawValue: settings.readingCycleRawValue ?? "") ?? .none },
             set: { cycle in
-                settings.readingCycleRawValue = cycle.rawValue
+                let fetchedSettings = (try? modelContext.fetch(FetchDescriptor<MTReaderSettings>())) ?? []
+                let storedSettings = fetchedSettings.isEmpty ? [settings] : fetchedSettings
+                for storedSetting in storedSettings {
+                    storedSetting.readingCycleRawValue = cycle.rawValue
+                }
                 try? modelContext.save()
                 isPresented = false
             }
