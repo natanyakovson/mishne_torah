@@ -8,6 +8,7 @@ struct LibraryView: View {
     @Query(sort: \MTBook.order) private var books: [MTBook]
     @Query private var settings: [MTReaderSettings]
     @State private var currentDate = Date()
+    @State private var selectedDate = Date()
     @State private var navigationResetID = UUID()
 
     private var activeSettings: MTReaderSettings {
@@ -25,7 +26,7 @@ struct LibraryView: View {
     }
 
     private var dailyReading: DailyRambamReading? {
-        ReadingCycleSchedule.reading(for: activeCycle, books: books, date: currentDate)
+        ReadingCycleSchedule.reading(for: activeCycle, books: books, date: selectedDate)
     }
 
     var body: some View {
@@ -35,7 +36,14 @@ struct LibraryView: View {
                     HomeHeaderView()
 
                     if let dailyReading {
-                        DailyRambamCard(reading: dailyReading, date: currentDate)
+                        DailyRambamCard(
+                            reading: dailyReading,
+                            date: selectedDate,
+                            today: currentDate,
+                            selectDate: { selectedDate = $0 },
+                            moveDay: moveSelectedDay,
+                            returnToToday: { selectedDate = currentDate }
+                        )
                     } else {
                         ReadingCyclePickerCard(settings: activeSettings, date: currentDate)
                     }
@@ -67,19 +75,33 @@ struct LibraryView: View {
                 }
             }
             .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
+                let wasToday = Calendar.current.isDate(selectedDate, inSameDayAs: currentDate)
                 currentDate = date
+                if wasToday { selectedDate = date }
             }
             .onChange(of: scenePhase) {
                 if scenePhase == .active {
-                    currentDate = Date()
+                    let date = Date()
+                    let wasToday = Calendar.current.isDate(selectedDate, inSameDayAs: currentDate)
+                    currentDate = date
+                    if wasToday { selectedDate = date }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .returnToLibraryRoot)) { _ in
-                currentDate = Date()
+                let date = Date()
+                currentDate = date
+                selectedDate = date
                 navigationResetID = UUID()
             }
         }
         .id(navigationResetID)
+    }
+
+    private func moveSelectedDay(_ offset: Int) {
+        guard let date = Calendar.current.date(byAdding: .day, value: offset, to: selectedDate) else { return }
+        withAnimation(.easeInOut(duration: 0.25)) {
+            selectedDate = date
+        }
     }
 
     private var homeInscription: some View {
@@ -404,11 +426,20 @@ struct ReadingCyclePickerCard: View {
 
 struct DailyRambamCard: View {
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isSelectingDate = false
     let reading: DailyRambamReading
     let date: Date
+    let today: Date
+    let selectDate: (Date) -> Void
+    let moveDay: (Int) -> Void
+    let returnToToday: () -> Void
 
     private var dateText: String {
         AppDateFormatter.combinedDateString(for: date)
+    }
+
+    private var isToday: Bool {
+        Calendar.current.isDate(date, inSameDayAs: today)
     }
 
     private var bookGroups: [[[MTChapter]]] {
@@ -436,12 +467,35 @@ struct DailyRambamCard: View {
                     .foregroundStyle(SefariaStyle.green)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("СЕГОДНЯ")
+                    Text(isToday ? "СЕГОДНЯ" : "ЧТЕНИЕ")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(SefariaStyle.green)
-                    Text(dateText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Button {
+                        isSelectingDate = true
+                    } label: {
+                        Text(dateText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $isSelectingDate) {
+                        DatePicker(
+                            "Дата чтения",
+                            selection: Binding(get: { date }, set: selectDate),
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                        .padding()
+                        .presentationCompactAdaptation(.popover)
+                    }
+                }
+                Spacer()
+                if !isToday {
+                    Button("Сегодня", action: returnToToday)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(SefariaStyle.green)
+                        .buttonStyle(.plain)
                 }
             }
 
@@ -496,6 +550,14 @@ struct DailyRambamCard: View {
                 .stroke(SefariaStyle.line.opacity(colorScheme == .dark ? 0.22 : 0.32), lineWidth: 0.75)
         }
         .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 24).onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height),
+                      abs(value.translation.width) > 44 else { return }
+                moveDay(value.translation.width < 0 ? 1 : -1)
+            }
+        )
     }
 }
 

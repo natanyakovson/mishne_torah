@@ -98,7 +98,7 @@ struct SavedLink: View {
     var body: some View {
         NavigationLink {
             if let chapter = halakhah.chapter {
-                ReaderView(chapter: chapter)
+                ReaderView(chapter: chapter, targetHalakhahContentID: halakhah.contentID)
             } else {
                 ContentUnavailableView("Глава не найдена", systemImage: "bookmark")
             }
