@@ -636,13 +636,7 @@ struct HalakhahCard: View {
                         .fill(SefariaStyle.line.opacity(0.42))
                         .frame(height: 0.75)
                 }
-                .padding(.vertical, 6)
-
-                Text("עברית")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .environment(\.layoutDirection, .rightToLeft)
+                .padding(.top, 6)
 
                 SelectableHalakhahText(
                     text: halakhah.hebrewDisplayText,
