@@ -425,9 +425,8 @@ struct ReadingCyclePickerCard: View {
 struct DailyRambamCard: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isSelectingDate = false
-    @GestureState(resetTransaction: Transaction(animation: .easeOut(duration: 0.22))) private var horizontalOffset: CGFloat = 0
-    @State private var swipeDirection = 1
-    @AppStorage("MTDailyReadingSwipeLearned") private var hasSwiped = false
+    @GestureState(resetTransaction: Transaction(animation: .easeOut(duration: 0.22))) private var dateOffset: CGFloat = 0
+    @State private var dayDirection = 1
     let reading: DailyRambamReading
     let date: Date
     let today: Date
@@ -477,32 +476,23 @@ struct DailyRambamCard: View {
 
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: 15) {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(spacing: 10) {
                 Button {
                     isSelectingDate = true
                 } label: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 10) {
-                Image(systemName: "calendar")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(SefariaStyle.green)
-                    .accessibilityHidden(true)
+                    Image(systemName: "calendar")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(SefariaStyle.green)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Выбрать дату")
+                Spacer()
                 if let dayTitle {
-                    Text(dayTitle)
+                    Text(dayTitle.capitalized)
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(SefariaStyle.green)
                 }
-                        }
-                        Text(dateText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                Spacer()
                 if !isToday {
                     Button("Сегодня", action: returnToToday)
                         .font(.caption.weight(.semibold))
@@ -511,11 +501,7 @@ struct DailyRambamCard: View {
                 }
             }
 
-            if !hasSwiped {
-                Text("‹ Смахните для другого дня ›")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+            dateSelector
 
             ForEach(bookGroups.indices, id: \.self) { bookIndex in
                 VStack(alignment: .leading, spacing: 6) {
@@ -525,12 +511,7 @@ struct DailyRambamCard: View {
                     ForEach(bookGroups[bookIndex].indices, id: \.self) { sectionIndex in
                         let chapters = bookGroups[bookIndex][sectionIndex]
                         if let chapter = chapters.first {
-                            NavigationLink {
-                                ReaderView(chapter: chapter)
-                            } label: {
-                                DailyRambamChapterRow(chapter: chapter, chapters: chapters)
-                            }
-                            .buttonStyle(DailyRambamLinkStyle())
+                            DailyRambamChapterRow(chapter: chapter, chapters: chapters)
                         }
                     }
                 }
@@ -571,34 +552,7 @@ struct DailyRambamCard: View {
     }
 
     var body: some View {
-        ZStack {
-            cardContent
-                .id(Calendar.current.startOfDay(for: date))
-                .transition(.asymmetric(
-                    insertion: .offset(x: swipeDirection > 0 ? 100 : -100).combined(with: .opacity),
-                    removal: .offset(x: swipeDirection > 0 ? -100 : 100).combined(with: .opacity)
-                ))
-        }
-        .contentShape(Rectangle())
-        .offset(x: horizontalOffset)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 12)
-                .updating($horizontalOffset) { value, offset, _ in
-                    guard abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
-                    offset = value.translation.width * 0.35
-                }
-                .onEnded { value in
-                    guard abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
-                    let projected = value.predictedEndTranslation.width
-                    if abs(value.translation.width) > 64 || abs(projected) > 140 {
-                        swipeDirection = value.translation.width < 0 ? 1 : -1
-                        hasSwiped = true
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            moveDay(swipeDirection)
-                        }
-                    }
-                }
-        )
+        cardContent
         .sheet(isPresented: $isSelectingDate) {
             VStack(spacing: 14) {
                 Text("Выбрать дату")
@@ -616,6 +570,55 @@ struct DailyRambamCard: View {
             .presentationDetents([.height(430)])
             .presentationDragIndicator(.visible)
         }
+    }
+
+    private var dateSelector: some View {
+        ZStack {
+            VStack(spacing: 4) {
+                Text(neighborDate(-1))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary.opacity(0.45))
+                Text(dateText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(neighborDate(1))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary.opacity(0.45))
+            }
+            .id(Calendar.current.startOfDay(for: date))
+            .transition(.asymmetric(
+                insertion: .offset(y: dayDirection > 0 ? 22 : -22).combined(with: .opacity),
+                removal: .offset(y: dayDirection > 0 ? -22 : 22).combined(with: .opacity)
+            ))
+            .offset(y: dateOffset)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 64)
+        .clipped()
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 16)
+                .updating($dateOffset) { value, offset, _ in
+                    guard abs(value.translation.height) > abs(value.translation.width) * 1.5 else { return }
+                    offset = max(-24, min(24, value.translation.height * 0.4))
+                }
+                .onEnded { value in
+                    guard abs(value.translation.height) > abs(value.translation.width) * 1.5,
+                          abs(value.translation.height) >= 28 else { return }
+                    dayDirection = value.translation.height < 0 ? 1 : -1
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        moveDay(dayDirection)
+                    }
+                }
+                .exclusively(before: TapGesture().onEnded { isSelectingDate = true })
+        )
+    }
+
+    private func neighborDate(_ offset: Int) -> String {
+        guard let neighbor = Calendar.current.date(byAdding: .day, value: offset, to: date) else { return "" }
+        return neighbor.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "ru_RU")))
     }
 
     private func chooseDate(_ selectedDate: Date) {
