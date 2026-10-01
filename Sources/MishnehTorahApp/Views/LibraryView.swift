@@ -425,9 +425,9 @@ struct ReadingCyclePickerCard: View {
 struct DailyRambamCard: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isSelectingDate = false
-    @State private var horizontalOffset: CGFloat = 0
-    @State private var cardOpacity = 1.0
-    @State private var isChangingDay = false
+    @GestureState(resetTransaction: Transaction(animation: .easeOut(duration: 0.22))) private var horizontalOffset: CGFloat = 0
+    @State private var swipeDirection = 1
+    @AppStorage("MTDailyReadingSwipeLearned") private var hasSwiped = false
     let reading: DailyRambamReading
     let date: Date
     let today: Date
@@ -475,9 +475,14 @@ struct DailyRambamCard: View {
         return groups
     }
 
-    var body: some View {
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .top, spacing: 10) {
+                Button {
+                    isSelectingDate = true
+                } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
                 Image(systemName: "calendar")
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(SefariaStyle.green)
@@ -487,6 +492,16 @@ struct DailyRambamCard: View {
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(SefariaStyle.green)
                 }
+                        }
+                        Text(dateText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 if !isToday {
                     Button("Сегодня", action: returnToToday)
@@ -496,20 +511,10 @@ struct DailyRambamCard: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                dayButton(systemImage: "chevron.left", offset: -1)
-                Button {
-                    isSelectingDate = true
-                } label: {
-                    Text(dateText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
-                dayButton(systemImage: "chevron.right", offset: 1)
+            if !hasSwiped {
+                Text("‹ Смахните для другого дня ›")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
 
             ForEach(bookGroups.indices, id: \.self) { bookIndex in
@@ -563,28 +568,34 @@ struct DailyRambamCard: View {
                 .stroke(SefariaStyle.line.opacity(colorScheme == .dark ? 0.22 : 0.32), lineWidth: 0.75)
         }
         .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
+    }
+
+    var body: some View {
+        ZStack {
+            cardContent
+                .id(Calendar.current.startOfDay(for: date))
+                .transition(.asymmetric(
+                    insertion: .offset(x: swipeDirection > 0 ? 100 : -100).combined(with: .opacity),
+                    removal: .offset(x: swipeDirection > 0 ? -100 : 100).combined(with: .opacity)
+                ))
+        }
         .contentShape(Rectangle())
         .offset(x: horizontalOffset)
-        .opacity(cardOpacity)
         .simultaneousGesture(
             DragGesture(minimumDistance: 12)
-                .onChanged { value in
-                    guard !isChangingDay,
-                          abs(value.translation.width) > abs(value.translation.height) else { return }
-                    horizontalOffset = value.translation.width
-                    cardOpacity = max(0.72, 1 - Double(abs(value.translation.width) / 600))
+                .updating($horizontalOffset) { value, offset, _ in
+                    guard abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
+                    offset = value.translation.width * 0.35
                 }
                 .onEnded { value in
-                    guard !isChangingDay,
-                          abs(value.translation.width) > abs(value.translation.height) else {
-                        resetCardPosition()
-                        return
-                    }
+                    guard abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
                     let projected = value.predictedEndTranslation.width
                     if abs(value.translation.width) > 64 || abs(projected) > 140 {
-                        changeDay(value.translation.width < 0 ? 1 : -1)
-                    } else {
-                        resetCardPosition()
+                        swipeDirection = value.translation.width < 0 ? 1 : -1
+                        hasSwiped = true
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            moveDay(swipeDirection)
+                        }
                     }
                 }
         )
@@ -607,50 +618,11 @@ struct DailyRambamCard: View {
         }
     }
 
-    private func dayButton(systemImage: String, offset: Int) -> some View {
-        Button {
-            changeDay(offset)
-        } label: {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(SefariaStyle.green.opacity(0.76))
-                .frame(width: 32, height: 28)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(offset < 0 ? "Предыдущий день" : "Следующий день")
-    }
-
     private func chooseDate(_ selectedDate: Date) {
         selectDate(selectedDate)
         isSelectingDate = false
     }
 
-    private func changeDay(_ offset: Int) {
-        guard !isChangingDay else { return }
-        isChangingDay = true
-        let exitDirection: CGFloat = offset > 0 ? -1 : 1
-        let distance = max(abs(horizontalOffset), 140)
-        withAnimation(.easeInOut(duration: 0.18), completionCriteria: .logicallyComplete) {
-            horizontalOffset = exitDirection * distance
-            cardOpacity = 0
-        } completion: {
-            moveDay(offset)
-            horizontalOffset = -exitDirection * distance
-            withAnimation(.easeInOut(duration: 0.2), completionCriteria: .logicallyComplete) {
-                horizontalOffset = 0
-                cardOpacity = 1
-            } completion: {
-                isChangingDay = false
-            }
-        }
-    }
-
-    private func resetCardPosition() {
-        withAnimation(.easeOut(duration: 0.2)) {
-            horizontalOffset = 0
-            cardOpacity = 1
-        }
-    }
 }
 
 struct DailyRambamChapterRow: View {
