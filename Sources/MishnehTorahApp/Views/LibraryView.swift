@@ -99,9 +99,7 @@ struct LibraryView: View {
 
     private func moveSelectedDay(_ offset: Int) {
         guard let date = Calendar.current.date(byAdding: .day, value: offset, to: selectedDate) else { return }
-        withAnimation(.easeInOut(duration: 0.25)) {
-            selectedDate = date
-        }
+        selectedDate = date
     }
 
     private var homeInscription: some View {
@@ -427,6 +425,9 @@ struct ReadingCyclePickerCard: View {
 struct DailyRambamCard: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isSelectingDate = false
+    @State private var horizontalOffset: CGFloat = 0
+    @State private var cardOpacity = 1.0
+    @State private var isChangingDay = false
     let reading: DailyRambamReading
     let date: Date
     let today: Date
@@ -440,6 +441,21 @@ struct DailyRambamCard: View {
 
     private var isToday: Bool {
         Calendar.current.isDate(date, inSameDayAs: today)
+    }
+
+    private var dayTitle: String? {
+        let calendar = Calendar.current
+        let difference = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: today),
+            to: calendar.startOfDay(for: date)
+        ).day
+        switch difference {
+        case -1: return "ВЧЕРА"
+        case 0: return "СЕГОДНЯ"
+        case 1: return "ЗАВТРА"
+        default: return nil
+        }
     }
 
     private var bookGroups: [[[MTChapter]]] {
@@ -466,29 +482,10 @@ struct DailyRambamCard: View {
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(SefariaStyle.green)
                     .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(isToday ? "СЕГОДНЯ" : "ЧТЕНИЕ")
+                if let dayTitle {
+                    Text(dayTitle)
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(SefariaStyle.green)
-                    Button {
-                        isSelectingDate = true
-                    } label: {
-                        Text(dateText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .popover(isPresented: $isSelectingDate) {
-                        DatePicker(
-                            "Дата чтения",
-                            selection: Binding(get: { date }, set: selectDate),
-                            displayedComponents: .date
-                        )
-                        .datePickerStyle(.graphical)
-                        .labelsHidden()
-                        .padding()
-                        .presentationCompactAdaptation(.popover)
-                    }
                 }
                 Spacer()
                 if !isToday {
@@ -497,6 +494,22 @@ struct DailyRambamCard: View {
                         .foregroundStyle(SefariaStyle.green)
                         .buttonStyle(.plain)
                 }
+            }
+
+            HStack(spacing: 8) {
+                dayButton(systemImage: "chevron.left", offset: -1)
+                Button {
+                    isSelectingDate = true
+                } label: {
+                    Text(dateText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                dayButton(systemImage: "chevron.right", offset: 1)
             }
 
             ForEach(bookGroups.indices, id: \.self) { bookIndex in
@@ -551,13 +564,92 @@ struct DailyRambamCard: View {
         }
         .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 4)
         .contentShape(Rectangle())
+        .offset(x: horizontalOffset)
+        .opacity(cardOpacity)
         .simultaneousGesture(
-            DragGesture(minimumDistance: 24).onEnded { value in
-                guard abs(value.translation.width) > abs(value.translation.height),
-                      abs(value.translation.width) > 44 else { return }
-                moveDay(value.translation.width < 0 ? 1 : -1)
-            }
+            DragGesture(minimumDistance: 12)
+                .onChanged { value in
+                    guard !isChangingDay,
+                          abs(value.translation.width) > abs(value.translation.height) else { return }
+                    horizontalOffset = value.translation.width
+                    cardOpacity = max(0.72, 1 - Double(abs(value.translation.width) / 600))
+                }
+                .onEnded { value in
+                    guard !isChangingDay,
+                          abs(value.translation.width) > abs(value.translation.height) else {
+                        resetCardPosition()
+                        return
+                    }
+                    let projected = value.predictedEndTranslation.width
+                    if abs(value.translation.width) > 64 || abs(projected) > 140 {
+                        changeDay(value.translation.width < 0 ? 1 : -1)
+                    } else {
+                        resetCardPosition()
+                    }
+                }
         )
+        .sheet(isPresented: $isSelectingDate) {
+            VStack(spacing: 14) {
+                Text("Выбрать дату")
+                    .font(.headline)
+                DatePicker(
+                    "Дата чтения",
+                    selection: Binding(get: { date }, set: chooseDate),
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+            }
+            .padding(20)
+            .frame(minWidth: 320, idealWidth: 360)
+            .presentationDetents([.height(430)])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func dayButton(systemImage: String, offset: Int) -> some View {
+        Button {
+            changeDay(offset)
+        } label: {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(SefariaStyle.green.opacity(0.76))
+                .frame(width: 32, height: 28)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(offset < 0 ? "Предыдущий день" : "Следующий день")
+    }
+
+    private func chooseDate(_ selectedDate: Date) {
+        selectDate(selectedDate)
+        isSelectingDate = false
+    }
+
+    private func changeDay(_ offset: Int) {
+        guard !isChangingDay else { return }
+        isChangingDay = true
+        let exitDirection: CGFloat = offset > 0 ? -1 : 1
+        let distance = max(abs(horizontalOffset), 140)
+        withAnimation(.easeInOut(duration: 0.18), completionCriteria: .logicallyComplete) {
+            horizontalOffset = exitDirection * distance
+            cardOpacity = 0
+        } completion: {
+            moveDay(offset)
+            horizontalOffset = -exitDirection * distance
+            withAnimation(.easeInOut(duration: 0.2), completionCriteria: .logicallyComplete) {
+                horizontalOffset = 0
+                cardOpacity = 1
+            } completion: {
+                isChangingDay = false
+            }
+        }
+    }
+
+    private func resetCardPosition() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            horizontalOffset = 0
+            cardOpacity = 1
+        }
     }
 }
 
