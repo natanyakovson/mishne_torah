@@ -425,8 +425,6 @@ struct ReadingCyclePickerCard: View {
 struct DailyRambamCard: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var isSelectingDate = false
-    @GestureState(resetTransaction: Transaction(animation: .easeOut(duration: 0.22))) private var dateOffset: CGFloat = 0
-    @State private var dayDirection = 1
     let reading: DailyRambamReading
     let date: Date
     let today: Date
@@ -439,21 +437,21 @@ struct DailyRambamCard: View {
     }
 
     private var isToday: Bool {
-        Calendar.current.isDate(date, inSameDayAs: today)
+        Calendar.current.isDateInToday(date)
     }
 
-    private var dayTitle: String? {
+    private var dayTitle: String {
         let calendar = Calendar.current
         let difference = calendar.dateComponents(
             [.day],
-            from: calendar.startOfDay(for: today),
+            from: calendar.startOfDay(for: Date()),
             to: calendar.startOfDay(for: date)
         ).day
         switch difference {
         case -1: return "ВЧЕРА"
         case 0: return "СЕГОДНЯ"
         case 1: return "ЗАВТРА"
-        default: return nil
+        default: return date.formatted(.dateTime.weekday(.wide).locale(Locale(identifier: "ru_RU"))).uppercased()
         }
     }
 
@@ -487,21 +485,20 @@ struct DailyRambamCard: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Выбрать дату")
+                Text(dayTitle)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(SefariaStyle.green)
                 Spacer()
-                if let dayTitle {
-                    Text(dayTitle.capitalized)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(SefariaStyle.green)
-                }
-                if !isToday {
-                    Button("Сегодня", action: returnToToday)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(SefariaStyle.green)
-                        .buttonStyle(.plain)
-                }
             }
 
             dateSelector
+
+            if !isToday {
+                Button("Сегодня") { selectDate(Date()) }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(SefariaStyle.green)
+                    .buttonStyle(.plain)
+            }
 
             ForEach(bookGroups.indices, id: \.self) { bookIndex in
                 VStack(alignment: .leading, spacing: 6) {
@@ -573,52 +570,42 @@ struct DailyRambamCard: View {
     }
 
     private var dateSelector: some View {
-        ZStack {
-            VStack(spacing: 4) {
-                Text(neighborDate(-1))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary.opacity(0.45))
+        HStack(spacing: 8) {
+            Button { moveDay(-1) } label: {
+                Image(systemName: "chevron.left")
+                    .font(.caption.weight(.medium))
+                    .frame(width: 28, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Предыдущий день")
+            Button { isSelectingDate = true } label: {
                 Text(dateText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(neighborDate(1))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary.opacity(0.45))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
-            .id(Calendar.current.startOfDay(for: date))
-            .transition(.asymmetric(
-                insertion: .offset(y: dayDirection > 0 ? 22 : -22).combined(with: .opacity),
-                removal: .offset(y: dayDirection > 0 ? -22 : 22).combined(with: .opacity)
-            ))
-            .offset(y: dateOffset)
+            Button { moveDay(1) } label: {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.medium))
+                    .frame(width: 28, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Следующий день")
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 64)
-        .clipped()
+        .buttonStyle(.plain)
+        .foregroundStyle(SefariaStyle.green)
         .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 16)
-                .updating($dateOffset) { value, offset, _ in
-                    guard abs(value.translation.height) > abs(value.translation.width) * 1.5 else { return }
-                    offset = max(-24, min(24, value.translation.height * 0.4))
-                }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20)
                 .onEnded { value in
-                    guard abs(value.translation.height) > abs(value.translation.width) * 1.5,
-                          abs(value.translation.height) >= 28 else { return }
-                    dayDirection = value.translation.height < 0 ? 1 : -1
-                    withAnimation(.easeInOut(duration: 0.22)) {
-                        moveDay(dayDirection)
-                    }
+                    guard abs(value.translation.width) > abs(value.translation.height) * 1.5,
+                          abs(value.translation.width) >= 36 else { return }
+                    moveDay(value.translation.width < 0 ? 1 : -1)
                 }
-                .exclusively(before: TapGesture().onEnded { isSelectingDate = true })
         )
-    }
-
-    private func neighborDate(_ offset: Int) -> String {
-        guard let neighbor = Calendar.current.date(byAdding: .day, value: offset, to: date) else { return "" }
-        return neighbor.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "ru_RU")))
     }
 
     private func chooseDate(_ selectedDate: Date) {
