@@ -570,27 +570,27 @@ struct DailyRambamCard: View {
     }
 
     private var dateSelector: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 2) {
             Button { moveDay(-1) } label: {
                 Image(systemName: "chevron.left")
-                    .font(.caption.weight(.medium))
-                    .frame(width: 28, height: 36)
+                    .font(.body.weight(.medium))
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("Предыдущий день")
             Button { isSelectingDate = true } label: {
                 Text(dateText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.leading)
+                    .font(.body)
+                    .foregroundStyle(Color.secondary)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
             }
             Button { moveDay(1) } label: {
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.medium))
-                    .frame(width: 28, height: 36)
+                    .font(.body.weight(.medium))
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("Следующий день")
